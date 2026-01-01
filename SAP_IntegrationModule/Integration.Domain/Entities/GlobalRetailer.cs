@@ -16,7 +16,7 @@ public class GlobalRetailer : BaseAuditableEntity
     public string CountryCode { get; set; } = string.Empty;
     public decimal Longitude { get; set; }
     public decimal Latitude { get; set; }
-    public string TerritoryCode { get; set; } = string.Empty;
+   // public string TerritoryCode { get; set; } = string.Empty;
     public string TelephoneNumber { get; set; } = string.Empty;
     public string TelephoneNumberSys { get; set; } = string.Empty;
     public string FaxNumber { get; set; } = string.Empty;
@@ -31,4 +31,16 @@ public class GlobalRetailer : BaseAuditableEntity
     public DateTime? BusinessRegisterationExpiryDate { get; set; }
     public string NicNumber { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
+
+
+
+
+
+    //public string Salutation { get; set; } = string.Empty;
+    //public string ContactName { get; set; } = string.Empty;
+    //public string OnStopFlag { get; set; } = string.Empty;
+    //public string OnStopReasonCode { get; set; } = string.Empty;
+    //public string Status { get; set; } = string.Empty;   
+    //public string SalesOperationType = string.Empty;
+
 }

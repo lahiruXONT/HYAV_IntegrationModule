@@ -1,8 +1,10 @@
 ﻿namespace Integration.Domain.Entities;
 public class Retailer : GlobalRetailer
 {
-    public long RecordId { get; set; }
     public string BusinessUnit { get; set; } = string.Empty;
+    public string SalesOrganization { get; set; } = string.Empty;
+    public string DistributionChannel { get; set; } = string.Empty;
+    public string Division { get; set; } = string.Empty;
 
     // Financial & Payment
     public string SettlementTermsCode { get; set; } = string.Empty;
@@ -64,4 +66,7 @@ public class Retailer : GlobalRetailer
     public DateTime? LicenseExpiryDate { get; set; }
     public string Remarks { get; set; } = string.Empty;
     public string StaffId { get; set; } = string.Empty;
+    public string RetailerTypeCode { get; set; }
+    public string RetailerClassCode { get; set; }
+    public string RetailerCategoryCode { get; set; }
 }

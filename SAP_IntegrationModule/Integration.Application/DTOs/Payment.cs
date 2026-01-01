@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Integration.Domain.DTOs
+namespace Integration.Application.DTOs
 {
     class Payment
     {

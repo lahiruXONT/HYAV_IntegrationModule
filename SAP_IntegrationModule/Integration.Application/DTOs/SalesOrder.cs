@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Integration.Application.Services
+namespace Integration.Application.DTOs
 {
-    sealed class ProductSyncService
+    class SalesOrder
     {
     }
 }

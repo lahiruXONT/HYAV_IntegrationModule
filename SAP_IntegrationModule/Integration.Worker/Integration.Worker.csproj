@@ -9,5 +9,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Integration.Application\Integration.Application.csproj" />
+    <ProjectReference Include="..\Integration.Infrastructure\Integration.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

@@ -3,12 +3,18 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.13.35825.156
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Integration.Api", "Integration.Api\Integration.Api.csproj", "{936031E9-8CDF-B05F-33A0-EFD5E97C551C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{92327B52-1CE0-C4B4-3C9B-FD836009688A} = {92327B52-1CE0-C4B4-3C9B-FD836009688A}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Integration.Application", "Integration.Application\Integration.Application.csproj", "{92327B52-1CE0-C4B4-3C9B-FD836009688A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Integration.Domain", "Integration.Domain\Integration.Domain.csproj", "{6DF9BE3E-4AA0-37E5-6C70-F6F1D53B9B35}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Integration.Infrastructure", "Integration.Infrastructure\Integration.Infrastructure.csproj", "{31DDB43E-4EE6-C9A3-65AD-73FE7E625B5A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6DF9BE3E-4AA0-37E5-6C70-F6F1D53B9B35} = {6DF9BE3E-4AA0-37E5-6C70-F6F1D53B9B35}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Integration.Worker", "Integration.Worker\Integration.Worker.csproj", "{60E33E28-6B46-4F85-9873-5B6CD8EE04A0}"
 EndProject
