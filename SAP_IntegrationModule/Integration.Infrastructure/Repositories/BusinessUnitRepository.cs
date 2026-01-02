@@ -35,14 +35,14 @@ public class BusinessUnitRepository : IBusinessUnitRepository
         }
     }
 
-    public async Task<BusinessUnitDBMAP> GetBusinessUnitByCodeAsync(string businessUnitCode)
+    public async Task<BusinessUnitDBMAP?> GetBusinessUnitByCodeAsync(string businessUnitCode)
     {
         if (string.IsNullOrWhiteSpace(businessUnitCode))
             throw new ArgumentException("Business unit code cannot be null or empty", nameof(businessUnitCode));
 
         try
         {
-            return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.BusinessUnit == businessUnitCode) ?? new BusinessUnitDBMAP { };
+            return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.BusinessUnit == businessUnitCode);
         }
         catch (Exception ex)
         {

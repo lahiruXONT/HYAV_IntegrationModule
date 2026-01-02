@@ -30,19 +30,17 @@ public sealed class MaterialMappingHelper
         {
             var businessUnit = await _businessUnitResolver.ResolveAsync( sapMaterial.Division ?? "");
 
-            var buConfig = await _businessUnitResolver.GetBusinessUnitConfigAsync(businessUnit);
-
             var product = new Product
             {
                 // Mandatory fields
-                ProductCode = sapMaterial.Material?.Trim(),
-                Description = sapMaterial.MaterialDescription?.Trim(),
+                ProductCode = sapMaterial.Material.Trim(),
+                Description = sapMaterial.MaterialDescription?.Trim()??"",
                 ProductGroup = GetMaterialGroup(sapMaterial.MaterialGroup1, ""),
                 AlternateSearch = GetMaterialGroup(sapMaterial.MaterialGroup2, ""),
                 StockCategory = GetMaterialGroup(sapMaterial.MaterialGroup3, ""),
                 ProductTypeCode = GetMaterialGroup(sapMaterial.MaterialGroup4, ""),
-                UOM1 = sapMaterial.SalesUnit?.Trim(),
-                UOM2 = sapMaterial.BaseUnit?.Trim(),
+                UOM1 = sapMaterial.SalesUnit.Trim(),
+                UOM2 = sapMaterial.BaseUnit.Trim(),
                 ConversionFactor = sapMaterial.ConversionFactor,
                 BatchProcessingFlag = MapBatchFlag(sapMaterial.BatchControlFlag),
                 NonStockItemFlag = MapNonStockFlag(sapMaterial.stockproductupdate),

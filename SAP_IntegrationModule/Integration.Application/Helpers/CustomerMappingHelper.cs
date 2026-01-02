@@ -1,13 +1,8 @@
 ﻿using Integration.Application.DTOs;
+using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Integration.Application.Helpers;
 
@@ -15,11 +10,13 @@ public class CustomerMappingHelper
 {
     private readonly BusinessUnitResolveHelper _businessUnitResolver;
     private readonly ILogger<CustomerMappingHelper> _logger;
+    private readonly IRetailerRepository _customerRepository;
 
-    public CustomerMappingHelper( ILogger<CustomerMappingHelper> logger, BusinessUnitResolveHelper businessUnitResolver)
+    public CustomerMappingHelper( ILogger<CustomerMappingHelper> logger, BusinessUnitResolveHelper businessUnitResolver,IRetailerRepository retailerRepository)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _businessUnitResolver = businessUnitResolver ?? throw new ArgumentNullException(nameof(businessUnitResolver));
+        _customerRepository = retailerRepository ?? throw new ArgumentNullException(nameof(retailerRepository));
     }
 
     public async Task<Retailer> MapSapToXontCustomerAsync(SapCustomerResponseDto sapCustomer)
@@ -30,7 +27,14 @@ public class CustomerMappingHelper
         {
             var businessUnit = await _businessUnitResolver.ResolveAsync(sapCustomer.Division ?? "");
 
-            var buConfig = await _businessUnitResolver.GetBusinessUnitConfigAsync(businessUnit);
+            var territory = await _customerRepository.GetTerritoryCodeAsync(sapCustomer.PostalCode ?? "");
+            if (territory == null || string.IsNullOrWhiteSpace(territory.TerritoryCode))
+            {
+                var errorMessage = $"No territory found for postal code: '{sapCustomer.PostalCode}'";
+                _logger.LogError(errorMessage);
+                throw new InvalidOperationException(errorMessage);
+
+            }
 
             return new Retailer
             {
@@ -47,10 +51,10 @@ public class CustomerMappingHelper
                 SettlementTermsCode = sapCustomer.PaymentTerm.Trim(),
                 CreditLimit = sapCustomer.CreditLimit,
 
-                VatRegistrationNo = sapCustomer.VATRegistrationNumber?.Trim(),
+                VatRegistrationNo = sapCustomer.VATRegistrationNumber?.Trim() ??"",
 
                 BusinessUnit = businessUnit,
-                TerritoryCode = sapCustomer.PostalCode,
+                TerritoryCode = territory?.TerritoryCode ?? "",
                 //Division =  sapCustomer.Division?.Trim(),
                 //SalesOrganization = sapCustomer.SalesOrganization?.Trim(),
                 //DistributionChannel = sapCustomer?.Distributionchannel ,
@@ -58,6 +62,8 @@ public class CustomerMappingHelper
 
                 // Default values
                 //Province
+                //District = sapCustomer.RegionCode?.Trim(),
+                //Town = sapCustomer.PostalCode?.Trim(),
 
                 TelephoneNumberSys = string.Empty,
                 ContactName = string.Empty,
@@ -79,8 +85,6 @@ public class CustomerMappingHelper
                     sapCustomer.CustomerGroup2.Trim() : "",
                 RetailerCategoryCode = !string.IsNullOrEmpty(sapCustomer.CustomerGroup3) ?
                     sapCustomer.CustomerGroup3.Trim() : "",
-                //District = sapCustomer.RegionCode?.Trim(),
-                //Town = sapCustomer.PostalCode?.Trim(),
 
 
                 // Audit fields
@@ -118,6 +122,10 @@ public class CustomerMappingHelper
         {
             errors.Add($"Division '{sapCustomer.Division}' not found ");
         }
+        if (!string.IsNullOrWhiteSpace(sapCustomer.PostalCode) && !await _customerRepository.PostalCodeTerritoryExistsAsync(sapCustomer.PostalCode))
+        {
+            errors.Add($"Territory for '{sapCustomer.PostalCode}' not found");
+        }
         if (errors.Any())
         {
             var errorMessage = string.Join("; ", errors);
@@ -141,7 +149,9 @@ public class CustomerMappingHelper
                existing.FaxNumber != updated.FaxNumber ||
                existing.EmailAddress != updated.EmailAddress ||
                existing.SettlementTermsCode != updated.SettlementTermsCode ||
-               existing.CreditLimit != updated.CreditLimit
+               existing.CreditLimit != updated.CreditLimit ||
+               existing.TerritoryCode != updated.TerritoryCode 
+               
                //|| existing.SalesOrganization != updated.SalesOrganization ||
                //existing.Division != updated.Division
                || existing.VatRegistrationNo != updated.VatRegistrationNo ||
@@ -158,7 +168,7 @@ public class CustomerMappingHelper
         if (existing == null) throw new ArgumentNullException(nameof(existing));
         if (updated == null) throw new ArgumentNullException(nameof(updated));
 
-
+        existing.TerritoryCode = updated.TerritoryCode;
         existing.RetailerName = updated.RetailerName;
         existing.AddressLine1 = updated.AddressLine1;
         existing.AddressLine2 = updated.AddressLine2;

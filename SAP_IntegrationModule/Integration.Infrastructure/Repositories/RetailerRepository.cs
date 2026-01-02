@@ -1,14 +1,10 @@
-﻿using Integration.Application.Interfaces;
-using Integration.Application.Helpers;
+﻿using Integration.Application.Helpers;
+using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
 using Integration.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Integration.Infrastructure.Repositories;
 
@@ -196,10 +192,12 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
                         .FirstAsync(r => r.RetailerCode == retailer.RetailerCode
                          && r.BusinessUnit == retailer.BusinessUnit);
             
+            existing.TerritoryCode = retailer.TerritoryCode;
             existing.CreditLimit = retailer.CreditLimit;
             existing.Status = retailer.Status;
             existing.UpdatedOn = DateTime.Now;
             existing.UpdatedBy = "SAP_SYNC";
+            buContext.Retailers.Update(existing);
 
         }
         catch (Exception ex)
@@ -257,6 +255,7 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
 
                 existing.UpdatedOn = DateTime.Now;
                 existing.UpdatedBy = "SAP_SYNC";
+                _globalContext.GlobalRetailers.Update(existing);
             }
 
         }
@@ -268,7 +267,51 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
             throw;
         }
     }
+    public async Task<bool>PostalCodeTerritoryExistsAsync(string postalCode)
+    {
+        if (string.IsNullOrWhiteSpace(postalCode))
+            throw new ArgumentException("Postal code cannot be null or empty", nameof(postalCode));
 
+        try
+        {
+            return await _globalContext.TerritoryPostalCodes.AsNoTracking().AnyAsync(t => t.PostalCode == postalCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting territory by postal code: {Code}", postalCode);
+            throw;
+        }
+
+    }
+    public async Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode)
+    {
+        if (string.IsNullOrWhiteSpace(postalCode))
+            throw new ArgumentException("Postal code cannot be null or empty", nameof(postalCode));
+
+        try
+        {
+            return await _globalContext.TerritoryPostalCodes.AsNoTracking().FirstOrDefaultAsync(t => t.PostalCode == postalCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting territory by postal code: {Code}", postalCode);
+            throw;
+        }
+    }
+
+    public async Task<List<TerritoryPostalCode>> GetAllTerritoryCodeAsync()
+    {
+
+        try
+        {
+            return await _globalContext.TerritoryPostalCodes.AsNoTracking().ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting territory with postal codes");
+            throw;
+        }
+    }
 
     private async Task<BuDbContext> CreateBuDbContextAsync(string businessUnit)
     {
