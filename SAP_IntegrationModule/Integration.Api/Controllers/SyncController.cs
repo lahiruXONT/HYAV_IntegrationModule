@@ -23,8 +23,7 @@ public class SyncController : ControllerBase
     [HttpPost("customer")]
     public async Task<ActionResult<CustomerSyncResultDto>> SyncCustomers([FromBody] XontCustomerSyncRequestDto request)
     {
-        //var result = await _customerSyncService.SyncCustomersFromSapAsync(request);
-        var result = await _customerSyncService.TestSyncWithDummyData();
+        var result = await _customerSyncService.SyncCustomersFromSapAsync(request);
         return Ok(result);
 
     }
