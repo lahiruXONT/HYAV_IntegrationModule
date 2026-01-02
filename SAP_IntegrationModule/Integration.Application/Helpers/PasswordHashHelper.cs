@@ -8,52 +8,53 @@ using System.Threading.Tasks;
 
 namespace Integration.Application.Helpers;
 
-public class PasswordHashHelper
-{
-    private readonly ILogger<PasswordHashHelper> _logger;
-
-    public PasswordHashHelper(ILogger<PasswordHashHelper> logger)
+    public class PasswordHashHelper
     {
-        _logger = logger;
-    }
+        private readonly ILogger<PasswordHashHelper> _logger;
 
-    public string HashPassword(string password)
-    {
-        try
+        public PasswordHashHelper(ILogger<PasswordHashHelper> logger)
         {
-            using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(password);
-            var hash = sha256.ComputeHash(bytes);
+            _logger = logger;
+        }
 
-            var builder = new StringBuilder();
-            foreach (var b in hash)
+        public string HashPassword(string password)
+        {
+            try
             {
-                builder.Append(b.ToString("x2"));
+                using var sha256 = SHA256.Create();
+                var bytes = Encoding.UTF8.GetBytes(password);
+                var hash = sha256.ComputeHash(bytes);
+
+                var builder = new StringBuilder();
+                foreach (var b in hash)
+                {
+                    builder.Append(b.ToString("x2"));
+                }
+
+                return builder.ToString();
             }
-
-            return builder.ToString();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to hash password");
+                throw;
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to hash password");
-            throw;
-        }
-    }
 
-    public bool VerifyPassword(string password, string hashedPassword)
-    {
-        try
+        public bool VerifyPassword(string password, string hashedPassword)
         {
-            var hashedInput = HashPassword(password);
-            if (hashedInput == hashedPassword)
-                return true;               
+            try
+            {
+                var hashedInput = HashPassword(password);
+                if (hashedInput == hashedPassword)
+                    return true;               
 
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to verify password");
-            return false;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to verify password");
+                return false;
+            }
         }
     }
 }

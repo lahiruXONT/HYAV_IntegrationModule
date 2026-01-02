@@ -6,47 +6,47 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Integration.Api.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
-[Authorize]
-public class SyncController : ControllerBase
-{
-    private readonly ICustomerSyncService _customerSyncService;
-    private readonly IMaterialSyncService _materialSyncService;
-
-    public SyncController(ICustomerSyncService customerSync, IMaterialSyncService materialSync)
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class SyncController : ControllerBase
     {
-        _customerSyncService = customerSync;
-        _materialSyncService = materialSync;
-    }
+        private readonly ICustomerSyncService _customerSyncService;
+        private readonly IMaterialSyncService _materialSyncService;
 
-    [HttpPost("customer")]
-    public async Task<ActionResult<CustomerSyncResultDto>> SyncCustomers([FromBody] XontCustomerSyncRequestDto request)
-    {
-        //var result = await _customerSyncService.SyncCustomersFromSapAsync(request);
-        var result = await _customerSyncService.TestSyncWithDummyData();
-        return Ok(result);
-
-    }
-
-    [HttpPost("material")]
-    public async Task<ActionResult<MaterialSyncResultDto>> SyncMaterials([FromBody] XontMaterialSyncRequestDto request)
-    {
-
-        var result = await _materialSyncService.SyncMaterialsFromSapAsync(request);
-        return Ok(result);
-
-    }
-
-    [HttpGet("status")]
-    public IActionResult GetSyncStatus()
-    {
-        var status = new
+        public SyncController(ICustomerSyncService customerSync, IMaterialSyncService materialSync)
         {
-           
-            IsHealthy = true
-        };
+            _customerSyncService = customerSync;
+            _materialSyncService = materialSync;
+        }
 
-        return Ok(status);
+        [HttpPost("customer")]
+        public async Task<ActionResult<CustomerSyncResultDto>> SyncCustomers([FromBody] XontCustomerSyncRequestDto request)
+        {
+            return Ok(result);
+
+        }
+
+        [HttpPost("material")]
+        public async Task<ActionResult<MaterialSyncResultDto>> SyncMaterials([FromBody] XontMaterialSyncRequestDto request)
+        {
+
+            var result = await _materialSyncService.SyncMaterialsFromSapAsync(request);
+            return Ok(result);
+
+        }
+
+        [HttpGet("status")]
+        public IActionResult GetSyncStatus()
+        {
+            var status = new
+            {
+               
+                IsHealthy = true
+            };
+
+            return Ok(status);
+        }
     }
+
 }

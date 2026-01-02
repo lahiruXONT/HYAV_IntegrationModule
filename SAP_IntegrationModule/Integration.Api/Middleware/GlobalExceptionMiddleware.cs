@@ -10,67 +10,69 @@ using System.Threading.Tasks;
 
 namespace Integration.Api.Middleware;
 
-public class GlobalExceptionMiddleware
-{
-    private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
-
-    public GlobalExceptionMiddleware(  RequestDelegate next,ILogger<GlobalExceptionMiddleware> logger)
+    public class GlobalExceptionMiddleware
     {
-        _next = next;
-        _logger = logger;
-    }
+        private readonly RequestDelegate _next;
+        private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
-    public async Task InvokeAsync(HttpContext context)
-    {
-        try
+        public GlobalExceptionMiddleware(  RequestDelegate next,ILogger<GlobalExceptionMiddleware> logger)
         {
-            await _next(context);
+            _next = next;
+            _logger = logger;
         }
-        catch (Exception ex)
+
+        public async Task InvokeAsync(HttpContext context)
         {
-            await HandleExceptionAsync(context, ex);
+            try
+            {
+                await _next(context);
+            }
+            catch (Exception ex)
+            {
+                await HandleExceptionAsync(context, ex);
+            }
         }
-    }
 
-    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
-    {
-        context.Response.ContentType = "application/json";
-        var response = context.Response;
-
-        var errorResponse = new ErrorResponse
+        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            Success = false,
-            Message = GetUserFriendlyMessage(exception),
-            Timestamp = DateTime.Now
-        };
+            context.Response.ContentType = "application/json";
+            var response = context.Response;
 
-        response.StatusCode = exception switch
+            var errorResponse = new ErrorResponse
+            {
+                Success = false,
+                Message = GetUserFriendlyMessage(exception),
+                Timestamp = DateTime.Now
+            };
+
+            response.StatusCode = exception switch
+            {
+                SapApiExceptionDto => (int)HttpStatusCode.BadGateway,
+                UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
+                ValidationExceptionDto => (int)HttpStatusCode.BadRequest,
+                _ => (int)HttpStatusCode.InternalServerError
+            };
+
+            errorResponse.ErrorType = exception.GetType().Name;
+
+            _logger.LogError(exception, "Error : {ErrorType}, Message: {Message}, Path: {Path}, StatusCode: {StatusCode}", errorResponse.ErrorType, exception.Message, context.Request.Path, response.StatusCode);
+
+            var result = JsonSerializer.Serialize(errorResponse);
+            await context.Response.WriteAsync(result);
+        }
+
+        private string GetUserFriendlyMessage(Exception exception)
         {
-            SapApiExceptionDto => (int)HttpStatusCode.BadGateway,
-            UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
-            ValidationExceptionDto => (int)HttpStatusCode.BadRequest,
-            _ => (int)HttpStatusCode.InternalServerError
-        };
+            return exception switch
+            {
+                SapApiExceptionDto => "SAP system Connection failed.",
+                DbUpdateException => "Database update failed.",
+                UnauthorizedAccessException => "Not authorized.",
+                ValidationExceptionDto => exception.Message,
+                _ => "An unexpected error occurred."
+            };
+        }
 
-        errorResponse.ErrorType = exception.GetType().Name;
-
-        _logger.LogError(exception, "Error : {ErrorType}, Message: {Message}, Path: {Path}, StatusCode: {StatusCode}", errorResponse.ErrorType, exception.Message, context.Request.Path, response.StatusCode);
-
-        var result = JsonSerializer.Serialize(errorResponse);
-        await context.Response.WriteAsync(result);
-    }
-
-    private string GetUserFriendlyMessage(Exception exception)
-    {
-        return exception switch
-        {
-            SapApiExceptionDto => "SAP system Connection failed.",
-            DbUpdateException => "Database update failed.",
-            UnauthorizedAccessException => "Not authorized.",
-            ValidationExceptionDto => exception.Message,
-            _ => "An unexpected error occurred."
-        };
     }
 
 }

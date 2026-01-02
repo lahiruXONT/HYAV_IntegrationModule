@@ -8,59 +8,55 @@ using System;
 
 namespace Integration.Infrastructure.Data;
 
-public class BuDbContext : DbContext
-{
-    private readonly string _buCode;
-
-    public BuDbContext(DbContextOptions<BuDbContext> options, string buCode)
-        : base(options)
+    public class BuDbContext : DbContext
     {
-        _buCode = buCode?.Trim() ?? throw new ArgumentNullException(nameof(buCode));
-    }
+        private readonly string _buCode;
 
-
-    public DbSet<Retailer> Retailers { get; set; }
-    public DbSet<Product> Products { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-
-    }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        if (modelBuilder == null)
-            throw new ArgumentNullException(nameof(modelBuilder));
-
-        modelBuilder.Entity<Retailer>(entity =>
+        public BuDbContext(DbContextOptions<BuDbContext> options, string buCode)
+            : base(options)
         {
-            entity.ToTable("Retailer", "RD");
-            entity.Metadata.SetAnnotation( "SqlServer:UseSqlOutputClause",false);
-            entity.HasKey(e => e.RecordID)
-                .HasName($"PK_Retailer"); 
+            _buCode = buCode?.Trim() ?? throw new ArgumentNullException(nameof(buCode));
+        }
 
-            entity.HasIndex(e => new { e.BusinessUnit, e.RetailerCode })
-                  .IsUnique()
-                  .HasDatabaseName($"IX_Retailer_BusinessUnit_RetailerCode");
 
-            entity.Property(e => e.RecordID)
-                  .ValueGeneratedOnAdd();
+        public DbSet<Retailer> Retailers { get; set; }
+        public DbSet<Product> Products { get; set; }
 
-            entity.Property(e => e.BusinessUnit)
-                  .HasDefaultValue(_buCode)
-                  .HasMaxLength(4)
-                  .IsRequired();
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
 
-            entity.Property(e => e.RetailerCode)
-                  .IsRequired()
-                  .HasMaxLength(15);
+        }
 
-            entity.Property(e => e.CreatedOn)
-                  .HasDefaultValueSql("GETDATE()");
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            if (modelBuilder == null)
+                throw new ArgumentNullException(nameof(modelBuilder));
 
-            entity.Property(e => e.UpdatedOn)
-                  .HasDefaultValueSql("GETDATE()");
+            modelBuilder.Entity<Retailer>(entity =>
+            {
+                    .HasName($"PK_Retailer"); 
+
+                entity.HasIndex(e => new { e.BusinessUnit, e.RetailerCode })
+                      .IsUnique()
+                      .HasDatabaseName($"IX_Retailer_BusinessUnit_RetailerCode");
+
+                      .ValueGeneratedOnAdd();
+
+                entity.Property(e => e.BusinessUnit)
+                      .HasDefaultValue(_buCode)
+                      .HasMaxLength(4)
+                      .IsRequired();
+
+                entity.Property(e => e.RetailerCode)
+                      .IsRequired()
+                      .HasMaxLength(15);
+
+                entity.Property(e => e.CreatedOn)
+                      .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(e => e.UpdatedOn)
+                      .HasDefaultValueSql("GETDATE()");
 
             // BLOCK updates for Global-owned columns
             entity.Property(e => e.RetailerName)
@@ -86,38 +82,34 @@ public class BuDbContext : DbContext
             entity.Property(e => e.TerritoryCode)
                   .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
-        });
+            });
 
-        modelBuilder.Entity<Product>(entity =>
-        {
-            entity.ToTable("Product", "RD");
-            entity.Metadata.SetAnnotation("SqlServer:UseSqlOutputClause", false);
+            modelBuilder.Entity<Product>(entity =>
+            {
 
-            entity.HasKey(e => e.RecID)
-                .HasName($"PK_Product");
+                    .HasName($"PK_Product");
 
-            entity.HasIndex(e => new { e.BusinessUnit, e.ProductCode })
-                  .IsUnique()
-                  .HasDatabaseName($"IX_Product_BusinessUnit_ProductCode");
+                entity.HasIndex(e => new { e.BusinessUnit, e.ProductCode })
+                      .IsUnique()
+                      .HasDatabaseName($"IX_Product_BusinessUnit_ProductCode");
 
-            entity.Property(e => e.RecID)
-                  .ValueGeneratedOnAdd();
+                      .ValueGeneratedOnAdd();
 
-            entity.Property(e => e.BusinessUnit)
-                  .HasDefaultValue(_buCode)
-                  .HasMaxLength(4)
-                  .IsRequired();
+                entity.Property(e => e.BusinessUnit)
+                      .HasDefaultValue(_buCode)
+                      .HasMaxLength(4)
+                      .IsRequired();
 
-            entity.Property(e => e.ProductCode)
-                  .IsRequired()
-                  .HasMaxLength(15);
+                entity.Property(e => e.ProductCode)
+                      .IsRequired()
+                      .HasMaxLength(15);
 
 
-            entity.Property(e => e.CreatedOn)
-                  .HasDefaultValueSql("GETDATE()");
+                entity.Property(e => e.CreatedOn)
+                      .HasDefaultValueSql("GETDATE()");
 
-            entity.Property(e => e.UpdatedOn)
-                  .HasDefaultValueSql("GETDATE()");
+                entity.Property(e => e.UpdatedOn)
+                      .HasDefaultValueSql("GETDATE()");
 
             // BLOCK updates for Global-owned columns
             entity.Property(e => e.ProductCode)
@@ -127,19 +119,20 @@ public class BuDbContext : DbContext
                   .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
             entity.Property(e => e.Description2)
                   .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-        });
+            });
 
-        base.OnModelCreating(modelBuilder);
+            base.OnModelCreating(modelBuilder);
 
-    }
+        }
 
-    public override void Dispose()
-    {
-        base.Dispose();
-    }
+        public override void Dispose()
+        {
+            base.Dispose();
+        }
 
-    public override async ValueTask DisposeAsync()
-    {
-        await base.DisposeAsync();
+        public override async ValueTask DisposeAsync()
+        {
+            await base.DisposeAsync();
+        }
     }
 }

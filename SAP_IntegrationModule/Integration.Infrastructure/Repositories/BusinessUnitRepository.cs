@@ -11,59 +11,79 @@ using System.Threading.Tasks;
 
 namespace Integration.Infrastructure.Repositories;
 
-public class BusinessUnitRepository : IBusinessUnitRepository
-{
-    private readonly GlobalDbContext _context;
-    private readonly ILogger<BusinessUnitRepository> _logger;
 
-    public BusinessUnitRepository(GlobalDbContext context,ILogger<BusinessUnitRepository> logger)
+    public class BusinessUnitRepository : IBusinessUnitRepository
     {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+        private readonly GlobalDbContext _context;
+        private readonly ILogger<BusinessUnitRepository> _logger;
 
-    public async Task<List<BusinessUnitDBMAP>> GetAllActiveBusinessUnitsAsync()
-    {
-        try
+        public BusinessUnitRepository(GlobalDbContext context,ILogger<BusinessUnitRepository> logger)
         {
-            return await _context.BusinessUnits.AsNoTracking().ToListAsync();
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting all active business units");
-            throw;
-        }
-    }
 
-    public async Task<BusinessUnitDBMAP> GetBusinessUnitByCodeAsync(string businessUnitCode)
-    {
-        if (string.IsNullOrWhiteSpace(businessUnitCode))
-            throw new ArgumentException("Business unit code cannot be null or empty", nameof(businessUnitCode));
-
-        try
+        public async Task<List<BusinessUnitDBMAP>> GetAllActiveBusinessUnitsAsync()
         {
-            return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.BusinessUnit == businessUnitCode) ?? new BusinessUnitDBMAP { };
+            try
+            {
+                return await _context.BusinessUnits.AsNoTracking().ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all active business units");
+                throw;
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting business unit by code: {Code}", businessUnitCode);
-            throw;
-        }
-    }
 
-    public async Task<BusinessUnitDBMAP> GetBusinessUnitByDivisionAsync(string division)
-    {
-        if (string.IsNullOrWhiteSpace(division))
-            throw new ArgumentException("Division cannot be null or empty", nameof(division));
+        public async Task<BusinessUnitDBMAP> GetBusinessUnitByCodeAsync(string businessUnitCode)
+        {
+            if (string.IsNullOrWhiteSpace(businessUnitCode))
+                throw new ArgumentException("Business unit code cannot be null or empty", nameof(businessUnitCode));
 
-        try
-        {
-            return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.Division == division) ?? new BusinessUnitDBMAP { } ;
+            try
+            {
+                return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.BusinessUnit == businessUnitCode) ?? new BusinessUnitDBMAP { };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting business unit by code: {Code}", businessUnitCode);
+                throw;
+            }
         }
-        catch (Exception ex)
+
+        public async Task<BusinessUnitDBMAP> GetBusinessUnitByDivisionAsync(string division)
         {
-            _logger.LogError(ex, "Error getting business unit by Division: {Division}", division);
-            throw;
+            if (string.IsNullOrWhiteSpace(division))
+                throw new ArgumentException("Division cannot be null or empty", nameof(division));
+
+            try
+            {
+                return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.Division == division) ?? new BusinessUnitDBMAP { } ;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting business unit by Division: {Division}", division);
+                throw;
+            }
+        }
+
+
+        private bool _disposed = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed && disposing)
+            {
+                _context?.Dispose();
+            }
+            _disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

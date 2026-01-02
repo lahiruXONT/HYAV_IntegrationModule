@@ -8,140 +8,141 @@ using System.Text;
 
 namespace Integration.Api.Middleware;
 
-public class RequestLoggingMiddleware
-{
-    private readonly RequestDelegate _next;
-    private readonly ILogger<RequestLoggingMiddleware> _logger;
-    private readonly IConfiguration _configuration;
-    private readonly IServiceProvider _serviceProvider;
-
-    public RequestLoggingMiddleware( RequestDelegate next, ILogger<RequestLoggingMiddleware> logger, IConfiguration configuration,IServiceProvider serviceProvider)
+    public class RequestLoggingMiddleware
     {
-        _next = next;
-        _logger = logger;
-        _configuration = configuration;
-        _serviceProvider = serviceProvider;
-    }
-    
-    public async Task InvokeAsync(HttpContext context)
-    {
-        var endpoint = context.GetEndpoint();
-        var controllerName = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>()?.ControllerName;
+        private readonly RequestDelegate _next;
+        private readonly ILogger<RequestLoggingMiddleware> _logger;
+        private readonly IConfiguration _configuration;
+        private readonly IServiceProvider _serviceProvider;
 
-        if (string.Equals(controllerName, "Auth", StringComparison.OrdinalIgnoreCase))
+        public RequestLoggingMiddleware( RequestDelegate next, ILogger<RequestLoggingMiddleware> logger, IConfiguration configuration,IServiceProvider serviceProvider)
         {
-            await _next(context);
-            return;
+            _next = next;
+            _logger = logger;
+            _configuration = configuration;
+            _serviceProvider = serviceProvider;
         }
-
-        var stopwatch = Stopwatch.StartNew();
-        long requestLogId = 0;
-
-        var originalBody = context.Response.Body;
-        await using var responseBody = new MemoryStream();
-        context.Response.Body = responseBody;
-
-        try
+        
+        public async Task InvokeAsync(HttpContext context)
         {
-            requestLogId = await LogRequest(context);
+            var endpoint = context.GetEndpoint();
+            var controllerName = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>()?.ControllerName;
 
-            await _next(context);
-
-            stopwatch.Stop();
-            if (context.Response.StatusCode >= 400)
+            if (string.Equals(controllerName, "Auth", StringComparison.OrdinalIgnoreCase))
             {
-                var responseText = await ReadResponseBody(context.Response);
-                await LogErrorToDatabase(context, requestLogId, responseText);
+                await _next(context);
+                return;
             }
 
-            _logger.LogInformation("Request completed: {Method} {Path} with status {StatusCode} in {ElapsedMilliseconds}ms", context.Request.Method,context.Request.Path, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
+            var stopwatch = Stopwatch.StartNew();
+            long requestLogId = 0;
+
+            var originalBody = context.Response.Body;
+            await using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            try
+            {
+                requestLogId = await LogRequest(context);
+
+                await _next(context);
+
+                stopwatch.Stop();
+                if (context.Response.StatusCode >= 400)
+                {
+                    var responseText = await ReadResponseBody(context.Response);
+                    await LogErrorToDatabase(context, requestLogId, responseText);
+                }
+
+                _logger.LogInformation("Request completed: {Method} {Path} with status {StatusCode} in {ElapsedMilliseconds}ms", context.Request.Method,context.Request.Path, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
+            }
+            catch
+            {
+                stopwatch.Stop();
+                throw;
+            }
+            finally
+            {
+
+                responseBody.Seek(0, SeekOrigin.Begin);
+                await responseBody.CopyToAsync(originalBody);
+                context.Response.Body = originalBody;
+            }
         }
-        catch
+
+        private async Task<long> LogRequest(HttpContext context)
         {
-            stopwatch.Stop();
-            throw;
+            try
+            {
+                var businessUnit = context.User?.FindFirst(ClaimTypes.System)?.Value ?? _configuration["DefaultBusinessUnit"] ??"";
+
+                var username = context.User?.Identity?.Name ?? "ANONYMOUS";
+                var methodName = $"{context.Request.Method} {context.Request.Path}";
+
+                var requestBody = await GetRequestBody(context.Request);
+                var message = $"{requestBody}";
+
+                using var scope = _serviceProvider.CreateScope();
+                var _logRepository = scope.ServiceProvider.GetRequiredService<ILogRepository>();
+                _logger.LogInformation("Request received: {Method} {Path} by {User} in {BusinessUnit}", context.Request.Method, context.Request.Path, username, businessUnit);
+                var requestLogId = await _logRepository.LogRequestAsync(businessUnit, username, methodName, message, "I");
+
+                return requestLogId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log received request to database.");
+                return 0;
+            }
         }
-        finally
-        {
 
-            responseBody.Seek(0, SeekOrigin.Begin);
-            await responseBody.CopyToAsync(originalBody);
-            context.Response.Body = originalBody;
+        private async Task<string> GetRequestBody(HttpRequest request)
+        {
+            if (request.ContentLength == null || request.ContentLength == 0)
+                return "[Empty Body]";
+
+            try
+            {
+                request.EnableBuffering();
+
+                using var reader = new StreamReader(request.Body, encoding: Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024,leaveOpen: true);
+
+                var body = await reader.ReadToEndAsync();
+                request.Body.Position = 0;
+                return  body;
+            }
+            catch
+            {
+                return "[Unable to read body]";
+            }
         }
-    }
 
-    private async Task<long> LogRequest(HttpContext context)
-    {
-        try
+        private async Task LogErrorToDatabase(HttpContext context,Int64 requestDBLogId, string responseBody)
         {
-            var businessUnit = context.User?.FindFirst(ClaimTypes.System)?.Value ?? _configuration["DefaultBusinessUnit"] ??"";
+            try
+            {
+                var businessUnit = context.User?.FindFirst(ClaimTypes.System)?.Value ?? _configuration["DefaultBusinessUnit"] ?? "";
+                var username = context.User?.Identity?.Name ?? "";
+                var methodName = $"{context.Request.Method} {context.Request.Path}";
 
-            var username = context.User?.Identity?.Name ?? "ANONYMOUS";
-            var methodName = $"{context.Request.Method} {context.Request.Path}";
-
-            var requestBody = await GetRequestBody(context.Request);
-            var message = $"{requestBody}";
-
-            using var scope = _serviceProvider.CreateScope();
-            var _logRepository = scope.ServiceProvider.GetRequiredService<ILogRepository>();
-            _logger.LogInformation("Request received: {Method} {Path} by {User} in {BusinessUnit}", context.Request.Method, context.Request.Path, username, businessUnit);
-            var requestLogId = await _logRepository.LogRequestAsync(businessUnit, username, methodName, message, "I");
-
-            return requestLogId;
+                using var scope = _serviceProvider.CreateScope();
+                var _logRepository = scope.ServiceProvider.GetRequiredService<ILogRepository>();
+                await _logRepository.LogErrorAsync(businessUnit, username, methodName, responseBody, requestDBLogId, "E");
+            }
+            catch (Exception logEx)
+            {
+                _logger.LogError(logEx, "Failed to log error to database.");
+            }
         }
-        catch (Exception ex)
+
+        private async Task<string> ReadResponseBody(HttpResponse response)
         {
-            _logger.LogError(ex, "Failed to log received request to database.");
-            return 0;
-        }
-    }
-
-    private async Task<string> GetRequestBody(HttpRequest request)
-    {
-        if (request.ContentLength == null || request.ContentLength == 0)
-            return "[Empty Body]";
-
-        try
-        {
-            request.EnableBuffering();
-
-            using var reader = new StreamReader(request.Body, encoding: Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024,leaveOpen: true);
-
+            response.Body.Seek(0, SeekOrigin.Begin);
+            using var reader = new StreamReader(response.Body, Encoding.UTF8, leaveOpen: true);
             var body = await reader.ReadToEndAsync();
-            request.Body.Position = 0;
-            return  body;
+            response.Body.Seek(0, SeekOrigin.Begin);
+            return string.IsNullOrWhiteSpace(body) ? "[Empty Response]" : body;
         }
-        catch
-        {
-            return "[Unable to read body]";
-        }
+
     }
-
-    private async Task LogErrorToDatabase(HttpContext context,Int64 requestDBLogId, string responseBody)
-    {
-        try
-        {
-            var businessUnit = context.User?.FindFirst(ClaimTypes.System)?.Value ?? _configuration["DefaultBusinessUnit"] ?? "";
-            var username = context.User?.Identity?.Name ?? "";
-            var methodName = $"{context.Request.Method} {context.Request.Path}";
-
-            using var scope = _serviceProvider.CreateScope();
-            var _logRepository = scope.ServiceProvider.GetRequiredService<ILogRepository>();
-            await _logRepository.LogErrorAsync(businessUnit, username, methodName, responseBody, requestDBLogId, "E");
-        }
-        catch (Exception logEx)
-        {
-            _logger.LogError(logEx, "Failed to log error to database.");
-        }
-    }
-
-    private async Task<string> ReadResponseBody(HttpResponse response)
-    {
-        response.Body.Seek(0, SeekOrigin.Begin);
-        using var reader = new StreamReader(response.Body, Encoding.UTF8, leaveOpen: true);
-        var body = await reader.ReadToEndAsync();
-        response.Body.Seek(0, SeekOrigin.Begin);
-        return string.IsNullOrWhiteSpace(body) ? "[Empty Response]" : body;
-    }
-
 }

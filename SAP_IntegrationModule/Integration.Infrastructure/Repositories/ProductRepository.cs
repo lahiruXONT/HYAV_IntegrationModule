@@ -14,208 +14,189 @@ namespace Integration.Infrastructure.Repositories;
 
 public class ProductRepository : IProductRepository, IAsyncDisposable
 {
-    private readonly GlobalDbContext _globalContext;
-    private readonly BusinessUnitResolveHelper _businessUnitHelper;
-    private readonly ILogger<ProductRepository> _logger;
-    private IDbContextTransaction? _globalTransaction;
-    private Dictionary<string, IDbContextTransaction> _buTransactions = new();
-    private Dictionary<string, BuDbContext> _buContexts = new();
-
-    public ProductRepository( GlobalDbContext globalContext, BusinessUnitResolveHelper businessUnitHelper, ILogger<ProductRepository> logger)
+    public class ProductRepository : IProductRepository, IDisposable
     {
-        _globalContext = globalContext ?? throw new ArgumentNullException(nameof(globalContext));
-        _businessUnitHelper = businessUnitHelper ?? throw new ArgumentNullException(nameof(businessUnitHelper));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+        private readonly GlobalDbContext _globalContext;
+        private readonly BusinessUnitResolveHelper _businessUnitHelper;
+        private readonly ILogger<ProductRepository> _logger;
+        private IDbContextTransaction? _globalTransaction;
+        private Dictionary<string, IDbContextTransaction> _buTransactions = new();
+        private Dictionary<string, BuDbContext> _buContexts = new();
 
-    // TRANSACTION MANAGEMENT
-    public async Task BeginTransactionAsync()
-    {
-        _globalTransaction = await _globalContext.Database.BeginTransactionAsync();
-        _buTransactions.Clear();
-        _buContexts.Clear();
-    }
-
-    public async Task CommitTransactionAsync()
-    {
-
-        try
         {
-            var globalChanges = await _globalContext.SaveChangesAsync();
-            foreach (var (buCode, context) in _buContexts)
-            {
-                if (_buTransactions.TryGetValue(buCode, out var transaction))
-                {
-                    var buChanges = await context.SaveChangesAsync();
-                    await transaction.CommitAsync();
+            _globalContext = globalContext ?? throw new ArgumentNullException(nameof(globalContext));
+            _businessUnitHelper = businessUnitHelper ?? throw new ArgumentNullException(nameof(businessUnitHelper));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
 
-
-                    await transaction.DisposeAsync();
-                    await context.DisposeAsync();
-                }
-            }
-            if (_globalTransaction != null)
-            {
-                await _globalTransaction.CommitAsync();
-                await _globalTransaction.DisposeAsync();
-            }
+        // TRANSACTION MANAGEMENT
+        public async Task BeginTransactionAsync()
+        {
+            _logger.LogDebug("Beginning global transaction");
+            _globalTransaction = await _globalContext.Database.BeginTransactionAsync();
             _buTransactions.Clear();
             _buContexts.Clear();
-            _globalTransaction = null;
-
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error committing product transaction");
-            await RollbackTransactionAsync();
-            throw;
-        }
-    }
 
-    public async Task RollbackTransactionAsync()
-    {
-        try
+        public async Task CommitTransactionAsync()
         {
-            if (_globalTransaction != null)
+            _logger.LogDebug("Committing transaction");
+
+            try
             {
-                await _globalTransaction.RollbackAsync();
-                await _globalTransaction.DisposeAsync();
+                var globalChanges = await _globalContext.SaveChangesAsync();
+                foreach (var (buCode, context) in _buContexts)
+                {
+                    if (_buTransactions.TryGetValue(buCode, out var transaction))
+                    {
+                        var buChanges = await context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+
+                        await transaction.DisposeAsync();
+                        await context.DisposeAsync();
+                    }
+                }
+                if (_globalTransaction != null)
+                {
+                    await _globalTransaction.CommitAsync();
+                    await _globalTransaction.DisposeAsync();
+                }
+                _buTransactions.Clear();
+                _buContexts.Clear();
                 _globalTransaction = null;
+
             }
-
-            foreach (var (buCode, transaction) in _buTransactions)
+            catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                await transaction.DisposeAsync();
+                await RollbackTransactionAsync();
+                throw;
+            }
+        }
 
-                if (_buContexts.TryGetValue(buCode, out var context))
+        public async Task RollbackTransactionAsync()
+        {
+
+            try
+            {
+                if (_globalTransaction != null)
                 {
-                    await context.DisposeAsync();
+                    await _globalTransaction.RollbackAsync();
+                    await _globalTransaction.DisposeAsync();
+                    _globalTransaction = null;
                 }
+
+                foreach (var (buCode, transaction) in _buTransactions)
+                {
+                    await transaction.RollbackAsync();
+                    await transaction.DisposeAsync();
+
+                    if (_buContexts.TryGetValue(buCode, out var context))
+                    {
+                        await context.DisposeAsync();
+                    }
+                }
+
+                _buTransactions.Clear();
+                _buContexts.Clear();
+                _globalContext.ChangeTracker.Clear();
+
             }
-
-            _buTransactions.Clear();
-            _buContexts.Clear();
-            _globalContext.ChangeTracker.Clear();
-
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during product transaction rollback");
-            throw;
-        }
-    }
-
-    public async Task<Product?> GetByProductCodeAsync(string productCode, string businessUnit)
-    {
-        if (string.IsNullOrWhiteSpace(productCode))
-            throw new ArgumentException("Product code cannot be null or empty", nameof(productCode));
-
-        if (string.IsNullOrWhiteSpace(businessUnit))
-            throw new ArgumentException("Business unit cannot be null or empty", nameof(businessUnit));
-
-
-        try
-        {
-            using var context = await CreateBuDbContextAsync(businessUnit);
-            return await context.Products
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.ProductCode == productCode && m.BusinessUnit == businessUnit);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting product by code: {Code} in BU: {BU}", productCode, businessUnit);
-            throw;
-        }
-    }
-
-    public async Task<GlobalProduct?> GetGlobalProductAsync(string productCode)
-    {
-        if (string.IsNullOrWhiteSpace(productCode))
-            throw new ArgumentException("Product code cannot be null or empty", nameof(productCode));
-
-        try
-        {
-            return await _globalContext.GlobalProducts
-                .AsNoTracking()
-                .FirstOrDefaultAsync(g => g.ProductCode == productCode);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting global product by code: {Code}", productCode);
-            throw;
-        }
-    }
-
-    public async Task CreateAsync(Product product)
-    {
-        if (product == null)
-            throw new ArgumentNullException(nameof(product));
-
-        if (string.IsNullOrWhiteSpace(product.BusinessUnit))
-            throw new ArgumentException("Product business unit cannot be null or empty", nameof(product.BusinessUnit));
-
-
-        try
-        {
-            var buContext = await GetBuContextWithTransactionAsync(product.BusinessUnit);
-
-            await UpdateGlobalProductAsync(product);
-
-            buContext.Products.Add(product);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating product: {Code} in BU: {BU}",
-                product.ProductCode, product.BusinessUnit);
-            throw;
-        }
-    }
-
-    public async Task UpdateAsync(Product product)
-    {
-        if (product == null)
-            throw new ArgumentNullException(nameof(product));
-
-        if (string.IsNullOrWhiteSpace(product.BusinessUnit))
-            throw new ArgumentException("Product business unit cannot be null or empty", nameof(product.BusinessUnit));
-
-        try
-        {
-            var buContext = await GetBuContextWithTransactionAsync(product.BusinessUnit);
-
-            await UpdateGlobalProductAsync(product);
-
-            var existing = await buContext.Products
-                       .FirstAsync(p => p.ProductCode == product.ProductCode
-                        && p.BusinessUnit == product.BusinessUnit);
-
-            existing.Status = product.Status;
-            existing.UpdatedOn = DateTime.Now;
-            existing.UpdatedBy = "SAP_SYNC";
-
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating product: {Code} in BU: {BU}",
-                product.ProductCode, product.BusinessUnit);
-            throw;
-        }
-    }
-
-    public async Task UpdateGlobalProductAsync(Product product)
-    {
-        if (product == null)
-            throw new ArgumentNullException(nameof(product));
-
-
-        try
-        {
-            var existing = await GetGlobalProductAsync(product.ProductCode);
-
-            if (existing == null)
+            catch (Exception ex)
             {
-                var globalProduct = new GlobalProduct
+                throw;
+            }
+        }
+
+        public async Task<Product?> GetByProductCodeAsync(string productCode, string businessUnit)
+        {
+            if (string.IsNullOrWhiteSpace(productCode))
+                throw new ArgumentException("Product code cannot be null or empty", nameof(productCode));
+
+            if (string.IsNullOrWhiteSpace(businessUnit))
+                throw new ArgumentException("Business unit cannot be null or empty", nameof(businessUnit));
+
+
+            try
+            {
+                using var context = await CreateBuDbContextAsync(businessUnit);
+                return await context.Products
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.ProductCode == productCode && m.BusinessUnit == businessUnit);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting product by code: {Code} in BU: {BU}", productCode, businessUnit);
+                throw;
+            }
+        }
+
+        public async Task<GlobalProduct?> GetGlobalProductAsync(string productCode)
+        {
+            if (string.IsNullOrWhiteSpace(productCode))
+                throw new ArgumentException("Product code cannot be null or empty", nameof(productCode));
+
+            try
+            {
+                return await _globalContext.GlobalProducts
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(g => g.ProductCode == productCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting global product by code: {Code}", productCode);
+                throw;
+            }
+        }
+
+        {
+
+        if (string.IsNullOrWhiteSpace(product.BusinessUnit))
+            throw new ArgumentException("Product business unit cannot be null or empty", nameof(product.BusinessUnit));
+
+
+            try
+            {
+
+
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
+        {
+            if (product == null)
+                throw new ArgumentNullException(nameof(product));
+
+            if (string.IsNullOrWhiteSpace(product.BusinessUnit))
+                throw new ArgumentException("Product business unit cannot be null or empty", nameof(product.BusinessUnit));
+
+
+            try
+            {
+                var buContext = await GetBuContextWithTransactionAsync(product.BusinessUnit);
+
+
+            }
+            catch (Exception ex)
+            {
+                    product.ProductCode, product.BusinessUnit);
+                throw;
+            }
+        }
+
+        {
+            if (product == null)
+                throw new ArgumentNullException(nameof(product));
+
+            if (string.IsNullOrWhiteSpace(product.BusinessUnit))
+                throw new ArgumentException("Product business unit cannot be null or empty", nameof(product.BusinessUnit));
+
+            try
+            {
+
                 {
                     ProductCode = product.ProductCode,
                     Description = product.Description,
@@ -249,107 +230,67 @@ public class ProductRepository : IProductRepository, IAsyncDisposable
                     UpdatedOn = DateTime.Now,
                     CreatedBy = "SAP_SYNC",
                     UpdatedBy = "SAP_SYNC"
-                };
-                _globalContext.GlobalProducts.Add(globalProduct);
-            }
-            else
-            {
-                existing.Description = product.Description;
-                existing.Description2 = product.Description2;
-                existing.ProductGroup = product.ProductGroup;
-                existing.AlternateSearch = product.AlternateSearch;
-                existing.StockCategory = product.StockCategory;
-                existing.ProductTypeCode = product.ProductTypeCode;
-                existing.UOM1 = product.UOM1;
-                existing.UOM2 = product.UOM2;
-                existing.ConversionFactor = product.ConversionFactor;
-                existing.SortSequence = product.SortSequence;
-                existing.PartAttribute1 = product.PartAttribute1;
-                existing.PartAttribute2 = product.PartAttribute2;
-                existing.Weight = product.Weight;
-                existing.SMMachineType = product.SMMachineType;
-                existing.SMPlatformSize = product.SMPlatformSize;
-                existing.SMCapacity = product.SMCapacity;
-                existing.SMOperatingEnvironment = product.SMOperatingEnvironment;
-                existing.StampingPeriod = product.StampingPeriod;
-                existing.WarrantyPeriod = product.WarrantyPeriod;
-                existing.Status = product.Status;
-                existing.FinishedProduct = product.FinishedProduct;
-                existing.NonStockItemFlag = product.NonStockItemFlag;
-                existing.SalableFlag = product.SalableFlag;
-                existing.BatchProcessingFlag = product.BatchProcessingFlag;
-                existing.BatchControlPrice = product.BatchControlPrice;
-                existing.TaxGroupCode = product.TaxGroupCode;
-                existing.TaxGroupValue = product.TaxGroupValue;
-                existing.UpdatedOn = DateTime.Now;
-                existing.UpdatedBy = "SAP_SYNC";
+                    _globalContext.GlobalProducts.Add(globalProduct);
+                }
+                else
+                {
 
+                }
+            }
+            catch (Exception ex)
+            {
+                throw;
             }
         }
-        catch (Exception ex)
+
+        private async Task<BuDbContext> CreateBuDbContextAsync(string businessUnit)
         {
-            _logger.LogError(ex, "Error updating global product: {Code}", product.ProductCode);
-            throw;
-        }
-    }
 
-    private async Task<BuDbContext> CreateBuDbContextAsync(string businessUnit)
-    {
+            var buConfig = await _businessUnitHelper.GetBusinessUnitConfigAsync(businessUnit);
 
-        var buConfig = await _businessUnitHelper.GetBusinessUnitConfigAsync(businessUnit);
+            var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
+            optionsBuilder.UseSqlServer(buConfig.ConnectionString);
 
-        var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
-        optionsBuilder.UseSqlServer(buConfig.ConnectionString);
-
-        return new BuDbContext(optionsBuilder.Options, businessUnit);
-    }
-
-    private async Task<BuDbContext> GetBuContextWithTransactionAsync(string businessUnit)
-    {
-        if (!_buContexts.TryGetValue(businessUnit, out var context))
-        {
-            context = await CreateBuDbContextAsync(businessUnit);
-            _buContexts[businessUnit] = context;
+            return new BuDbContext(optionsBuilder.Options, businessUnit);
         }
 
-        if (!_buTransactions.ContainsKey(businessUnit))
+        private async Task<BuDbContext> GetBuContextWithTransactionAsync(string businessUnit)
         {
-            var transaction = await context.Database.BeginTransactionAsync();
-            _buTransactions[businessUnit] = transaction;
-        }
-
-        return context;
-    }
-
-
-    private bool _disposed = false;
-
-    public async ValueTask DisposeAsync()
-    {
-        if (!_disposed)
-        {
-            try
+            if (!_buContexts.TryGetValue(businessUnit, out var context))
             {
-                if (_globalTransaction != null)
-                {
-                    await _globalTransaction.DisposeAsync();
-                    _globalTransaction = null;
-                }
+                context = await CreateBuDbContextAsync(businessUnit);
+                _buContexts[businessUnit] = context;
+            }
 
-                foreach (var transaction in _buTransactions.Values)
+            if (!_buTransactions.ContainsKey(businessUnit))
+            {
+                var transaction = await context.Database.BeginTransactionAsync();
+                _buTransactions[businessUnit] = transaction;
+            }
+
+            return context;
+        }
+
+
+        private bool _disposed = false;
+
+        {
+            if (!_disposed)
+            {
                 {
-                    if (transaction != null)
-                        await transaction.DisposeAsync();
-                }
+
+                    foreach (var transaction in _buTransactions.Values)
+                    {
+                    }
                 _buTransactions.Clear();
 
-                foreach (var context in _buContexts.Values)
-                {
-                    if (context != null)
-                        await context.DisposeAsync();
+                    foreach (var context in _buContexts.Values)
+                    {
+                    }
+
+                    _buTransactions.Clear();
+                    _buContexts.Clear();
                 }
-                _buContexts.Clear();
-            }
             finally
             {
                 _disposed = true;
@@ -370,16 +311,9 @@ public class ProductRepository : IProductRepository, IAsyncDisposable
             foreach (var transaction in _buTransactions.Values)
             {
                 transaction?.Dispose();
-            }
+        }
 
-            foreach (var context in _buContexts.Values)
-            {
-                context?.Dispose();
-            }
-
-            _buTransactions.Clear();
-            _buContexts.Clear();
-            _disposed = true;
+        {
         }
     }
 }

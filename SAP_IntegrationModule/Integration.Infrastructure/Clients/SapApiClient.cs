@@ -8,100 +8,102 @@ using System.Text.Json;
 
 namespace Integration.Infrastructure.Clients;
 
-public class SapApiClient : ISapClient
-{
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<SapApiClient> _logger;
-    private readonly JsonSerializerOptions _jsonOptions;
-    private readonly IAsyncPolicy<HttpResponseMessage> _retryPolicy;
-
-    public SapApiClient(HttpClient httpClient, ILogger<SapApiClient> logger)
+    public class SapApiClient : ISapClient
     {
-        _httpClient = httpClient;
-        _logger = logger;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-        _retryPolicy = Policy<HttpResponseMessage>
-        .Handle<HttpRequestException>()
-        .OrResult(r => (int)r.StatusCode >= 500)
-        .WaitAndRetryAsync(
-            retryCount: 3,
-            sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
-            onRetry: (outcome, timespan, retryAttempt, context) =>
-            {
-                _logger.LogWarning(
-                    "SAP API call failed. Retry {RetryAttempt} after {Delay}ms. Status: {StatusCode}",
-                    retryAttempt, timespan.TotalMilliseconds,
-                    outcome.Result?.StatusCode.ToString() ?? outcome.Exception?.Message);
-            });
-    }
+        private readonly HttpClient _httpClient;
+        private readonly ILogger<SapApiClient> _logger;
+        private readonly JsonSerializerOptions _jsonOptions;
+        private readonly IAsyncPolicy<HttpResponseMessage> _retryPolicy;
 
-    public async Task<List<SapCustomerResponseDto>> GetCustomerChangesAsync(XontCustomerSyncRequestDto request)
-    {
-        try
-
+        public SapApiClient(HttpClient httpClient, ILogger<SapApiClient> logger)
         {
-            var queryParams = new Dictionary<string, string>
+            _httpClient = httpClient;
+            _logger = logger;
+            _jsonOptions = new JsonSerializerOptions
             {
-                ["$filter"] =
-                             $"ChangedOn ge datetime'{request.Date}T00:00:00' " +
-                             $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
-                ["$format"] = "json"
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
-            var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-            var endpoint = $"/sap/opu/odata/sap/ZCUSTOMER_MASTER_SRV/CustomerSet?{queryString}";
-            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
-
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync();
-
-            var sapResponse = JsonSerializer.Deserialize<SapODataResponse<SapCustomerResponseDto>>(json, _jsonOptions);
-
-            var customers = sapResponse?.D?.Results ?? new List<SapCustomerResponseDto>();
-
-            return customers;
-
-
+            _retryPolicy = Policy<HttpResponseMessage>
+            .Handle<HttpRequestException>()
+            .OrResult(r => (int)r.StatusCode >= 500)
+            .WaitAndRetryAsync(
+                retryCount: 3,
+                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (outcome, timespan, retryAttempt, context) =>
+                {
+                    _logger.LogWarning(
+                        "SAP API call failed. Retry {RetryAttempt} after {Delay}ms. Status: {StatusCode}",
+                        retryAttempt, timespan.TotalMilliseconds,
+                        outcome.Result?.StatusCode.ToString() ?? outcome.Exception?.Message);
+                });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching customer data from SAP");
-            throw new SapApiExceptionDto($"SAP API call failed: {ex.Message}", ex);
-        }
-    }
 
-    public async Task<List<SapMaterialResponseDto>> GetMaterialChangesAsync(XontMaterialSyncRequestDto request)
-    {
-        try
+        public async Task<List<SapCustomerResponseDto>> GetCustomerChangesAsync(XontCustomerSyncRequestDto request)
         {
-            var queryParams = new Dictionary<string, string>
+            try
+
             {
-                ["$filter"] = $"ChangedOn ge datetime'{request.Date}T00:00:00' " +
-                             $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
-                ["$format"] = "json"
-            };
-            var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-            var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_MASTER_SRV/MaterialSet?{queryString}";
-            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
+                var queryParams = new Dictionary<string, string>
+                {
+                    ["$filter"] =
+                                 $"ChangedOn ge datetime'{request.Date}T00:00:00' " +
+                                 $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
+                    ["$format"] = "json"
+                };
+                var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+                var endpoint = $"/sap/opu/odata/sap/ZCUSTOMER_MASTER_SRV/CustomerSet?{queryString}";
+                var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
 
-            response.EnsureSuccessStatusCode();
+                response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync();
 
-            var sapResponse = JsonSerializer.Deserialize<SapODataResponse<SapMaterialResponseDto>>(json, _jsonOptions);
+                var sapResponse = JsonSerializer.Deserialize<SapODataResponse<SapCustomerResponseDto>>(json, _jsonOptions);
 
-            var materials = sapResponse?.D?.Results ?? new List<SapMaterialResponseDto>();
+                var customers = sapResponse?.D?.Results ?? new List<SapCustomerResponseDto>();
 
-            return materials;
+                return customers;
+
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching customer data from SAP");
+                throw new SapApiExceptionDto($"SAP API call failed: {ex.Message}", ex);
+            }
         }
-        catch (Exception ex)
+
+        public async Task<List<SapMaterialResponseDto>> GetMaterialChangesAsync(XontMaterialSyncRequestDto request)
         {
-            _logger.LogError(ex, "Error fetching material data from SAP");
-            throw new SapApiExceptionDto($"SAP Material API call failed: {ex.Message}", ex);
+            try
+            {
+                var queryParams = new Dictionary<string, string>
+                {
+                    ["$filter"] = $"ChangedOn ge datetime'{request.Date}T00:00:00' " +
+                                 $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
+                    ["$format"] = "json"
+                };
+                var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+                var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_MASTER_SRV/MaterialSet?{queryString}";
+                var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
+
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
+
+                var sapResponse = JsonSerializer.Deserialize<SapODataResponse<SapMaterialResponseDto>>(json, _jsonOptions);
+
+                var materials = sapResponse?.D?.Results ?? new List<SapMaterialResponseDto>();
+
+                return materials;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching material data from SAP");
+                throw new SapApiExceptionDto($"SAP Material API call failed: {ex.Message}", ex);
+            }
         }
     }
+
 }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Integration.Application.DTOs;
 
-class SalesInvoice
-{
+    class SalesInvoice
+    {
+    }
 }

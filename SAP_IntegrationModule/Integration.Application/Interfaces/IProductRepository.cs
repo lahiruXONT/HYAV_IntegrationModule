@@ -7,15 +7,17 @@ using System.Threading.Tasks;
 
 namespace Integration.Application.Interfaces;
 
-public interface IProductRepository
-{
-    Task<Product?> GetByProductCodeAsync(string productCode, string businessUnit);
-    Task<GlobalProduct?> GetGlobalProductAsync(string productCode);
-    Task CreateAsync(Product product);
-    Task UpdateAsync(Product product);
-    Task UpdateGlobalProductAsync(Product product);
+    public interface IProductRepository
+    {
+        Task<Product?> GetByProductCodeAsync(string productCode, string businessUnit);
+        Task<GlobalProduct?> GetGlobalProductAsync(string productCode);
+        Task<List<Product>> GetByBusinessUnitAsync(string businessUnit);
+        Task<bool> ExistsAsync(string productCode, string businessUnit);
+        Task CreateAsync(Product product);
+        Task UpdateAsync(Product product);
 
-    Task BeginTransactionAsync();
-    Task CommitTransactionAsync();
-    Task RollbackTransactionAsync();
+        Task BeginTransactionAsync();
+        Task CommitTransactionAsync();
+        Task RollbackTransactionAsync();
+    }
 }

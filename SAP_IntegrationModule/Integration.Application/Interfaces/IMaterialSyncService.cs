@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 
 namespace Integration.Application.Interfaces;
 
-public interface IMaterialSyncService
-{
-    Task<MaterialSyncResultDto> SyncMaterialsFromSapAsync(XontMaterialSyncRequestDto request);
+    public interface IMaterialSyncService
+    {
+        Task<MaterialSyncResultDto> SyncMaterialsFromSapAsync(XontMaterialSyncRequestDto request);
+    }
 }

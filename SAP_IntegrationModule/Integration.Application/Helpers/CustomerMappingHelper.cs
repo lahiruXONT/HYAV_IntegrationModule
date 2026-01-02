@@ -213,5 +213,4 @@ public class CustomerMappingHelper
             return DateTime.Now;
         }
     }
-
 }
