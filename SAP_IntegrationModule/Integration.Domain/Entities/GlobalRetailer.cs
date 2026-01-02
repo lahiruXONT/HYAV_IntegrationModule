@@ -92,4 +92,13 @@ public class GlobalRetailer : BaseAuditableEntity
     public string NicNumber { get; set; } = string.Empty;
 
     public DateTime? DateOfBirth { get; set; }
+
+
+    //public string Salutation { get; set; } = string.Empty;
+    //public string ContactName { get; set; } = string.Empty;
+    //public string OnStopFlag { get; set; } = string.Empty;
+    //public string OnStopReasonCode { get; set; } = string.Empty;
+    //public string Status { get; set; } = string.Empty;   
+    //public string SalesOperationType = string.Empty;
+
 }

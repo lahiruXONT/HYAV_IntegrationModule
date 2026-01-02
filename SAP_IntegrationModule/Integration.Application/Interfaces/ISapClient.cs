@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 
 namespace Integration.Application.Interfaces;
 
-    public interface ISapClient
-    {
-        Task<List<SapCustomerResponseDto>> GetCustomerChangesAsync(XontCustomerSyncRequestDto request);
-        Task<List<SapMaterialResponseDto>> GetMaterialChangesAsync(XontMaterialSyncRequestDto request);
-    }
+public interface ISapClient
+{
+    Task<List<SapCustomerResponseDto>> GetCustomerChangesAsync(XontCustomerSyncRequestDto request);
+    Task<List<SapMaterialResponseDto>> GetMaterialChangesAsync(XontMaterialSyncRequestDto request);
 }

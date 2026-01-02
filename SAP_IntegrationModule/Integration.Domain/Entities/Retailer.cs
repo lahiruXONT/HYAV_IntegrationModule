@@ -8,6 +8,9 @@ public class Retailer : GlobalRetailer
 {
     [StringLength(4)]
     public string BusinessUnit { get; set; } = string.Empty;
+    //public string SalesOrganization { get; set; } = string.Empty;
+    //public string DistributionChannel { get; set; } = string.Empty;
+    //public string Division { get; set; } = string.Empty;
 
     [StringLength(3)]
     public string SettlementTermsCode { get; set; } = string.Empty;
@@ -153,4 +156,16 @@ public class Retailer : GlobalRetailer
 
     [StringLength(20)]
     public string StaffId { get; set; } = string.Empty;
+
+    [StringLength(10)]
+    public string RetailerTypeCode { get; set; } = string.Empty;
+
+    [StringLength(10)]
+    public string RetailerClassCode { get; set; } = string.Empty;
+
+    [StringLength(10)]
+    public string RetailerCategoryCode { get; set; } = string.Empty;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TotalBalance { get; set; }
 }

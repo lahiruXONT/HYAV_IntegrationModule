@@ -33,49 +33,48 @@ public static class ErrorCodes
 
 
 
-    public class ValidationExceptionDto : Exception
+public class ValidationExceptionDto : Exception
+{
+    public ValidationExceptionDto(string message) : base(message) { }
+}
+
+
+public class SapApiExceptionDto : Exception
+{
+    public SapApiExceptionDto(string message, Exception innerException) : base(message, innerException)
     {
-        public ValidationExceptionDto(string message) : base(message) { }
+    }
+}
+public class CustomerSyncException : Exception
+{
+    public string CustomerCode { get; }
+
+    public CustomerSyncException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        CustomerCode = string.Empty;
     }
 
-
-    public class SapApiExceptionDto : Exception
+    public CustomerSyncException(string message, string customerCode, Exception innerException)
+        : base(message, innerException)
     {
-        public SapApiExceptionDto(string message, Exception innerException) : base(message, innerException)
-        {
-        }
+        CustomerCode = customerCode;
     }
-    public class CustomerSyncException : Exception
+}
+
+public class MaterialSyncException : Exception
+{
+    public string MaterialCode { get; }
+
+    public MaterialSyncException(string message, Exception innerException)
+        : base(message, innerException)
     {
-        public string CustomerCode { get; }
-
-        public CustomerSyncException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-            CustomerCode = string.Empty;
-        }
-
-        public CustomerSyncException(string message, string customerCode, Exception innerException)
-            : base(message, innerException)
-        {
-            CustomerCode = customerCode;
-        }
+        MaterialCode = string.Empty;
     }
 
-    public class MaterialSyncException : Exception
+    public MaterialSyncException(string message, string materialCode, Exception innerException)
+        : base(message, innerException)
     {
-        public string MaterialCode { get; }
-
-        public MaterialSyncException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-            MaterialCode = string.Empty;
-        }
-
-        public MaterialSyncException(string message, string materialCode, Exception innerException)
-            : base(message, innerException)
-        {
-            MaterialCode = materialCode;
-        }
+        MaterialCode = materialCode;
     }
 }

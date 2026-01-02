@@ -7,12 +7,15 @@ using System.Threading.Tasks;
 
 namespace Integration.Application.Interfaces;
 
-    {
-        Task BeginTransactionAsync();
-        Task CommitTransactionAsync();
-        Task RollbackTransactionAsync();
-        Task<Retailer?> GetByRetailerCodeAsync(string retailerCode, string businessUnit);
-        Task<GlobalRetailer?> GetGlobalRetailerAsync(string retailerCode);
-        Task CreateAsync(Retailer retailer);
-        Task UpdateAsync(Retailer retailer);
+
+public interface IRetailerRepository
+{
+    Task BeginTransactionAsync();
+    Task CommitTransactionAsync();
+    Task RollbackTransactionAsync();
+    Task<Retailer?> GetByRetailerCodeAsync(string retailerCode, string businessUnit);
+    Task<GlobalRetailer?> GetGlobalRetailerAsync(string retailerCode);
+    Task CreateAsync(Retailer retailer);
+    Task UpdateAsync(Retailer retailer);
+    Task UpdateGlobalRetailerAsync(Retailer retailer);
 }

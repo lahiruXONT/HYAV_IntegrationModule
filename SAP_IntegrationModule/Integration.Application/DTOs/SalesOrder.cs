@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Integration.Application.DTOs;
 
-    class SalesOrder
-    {
-    }
+class SalesOrder
+{
 }

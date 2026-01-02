@@ -2,7 +2,8 @@
 
 namespace Integration.Application.Interfaces;
 
-    public interface ICustomerSyncService
-    {
-        Task<CustomerSyncResultDto> SyncCustomersFromSapAsync(XontCustomerSyncRequestDto request);
+public interface ICustomerSyncService
+{
+    Task<CustomerSyncResultDto> SyncCustomersFromSapAsync(XontCustomerSyncRequestDto request);
+    Task<CustomerSyncResultDto> TestSyncWithDummyData();
 }
