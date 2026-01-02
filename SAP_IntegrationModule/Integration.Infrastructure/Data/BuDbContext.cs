@@ -62,29 +62,29 @@ public class BuDbContext : DbContext
             entity.Property(e => e.UpdatedOn)
                   .HasDefaultValueSql("GETDATE()");
 
-            // BLOCK updates for Global-owned columns
-            entity.Property(e => e.RetailerName)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            // BLOCK updates for Global-owned columns if needed
+            //entity.Property(e => e.RetailerName)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
-            entity.Property(e => e.AddressLine1)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-            entity.Property(e => e.AddressLine2)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-            entity.Property(e => e.AddressLine3)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-            entity.Property(e => e.AddressLine4)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-            entity.Property(e => e.AddressLine5)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.AddressLine1)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.AddressLine2)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.AddressLine3)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.AddressLine4)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.AddressLine5)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
-            entity.Property(e => e.TelephoneNumber)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.TelephoneNumber)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
-            entity.Property(e => e.EmailAddress)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.EmailAddress)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
-            entity.Property(e => e.TerritoryCode)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.TerritoryCode)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
         });
 
@@ -120,13 +120,13 @@ public class BuDbContext : DbContext
                   .HasDefaultValueSql("GETDATE()");
 
             // BLOCK updates for Global-owned columns
-            entity.Property(e => e.ProductCode)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.ProductCode)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
-            entity.Property(e => e.Description)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-            entity.Property(e => e.Description2)
-                  .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.Description)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+            //entity.Property(e => e.Description2)
+            //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
         });
 
         base.OnModelCreating(modelBuilder);

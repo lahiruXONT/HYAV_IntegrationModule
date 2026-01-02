@@ -193,6 +193,7 @@ public class ProductRepository : IProductRepository, IAsyncDisposable
             existing.Status = product.Status;
             existing.UpdatedOn = DateTime.Now;
             existing.UpdatedBy = "SAP_SYNC";
+            buContext.Products.Update(existing);
 
         }
         catch (Exception ex)
@@ -283,6 +284,7 @@ public class ProductRepository : IProductRepository, IAsyncDisposable
                 existing.TaxGroupValue = product.TaxGroupValue;
                 existing.UpdatedOn = DateTime.Now;
                 existing.UpdatedBy = "SAP_SYNC";
+                _globalContext.GlobalProducts.Update(existing);
 
             }
         }

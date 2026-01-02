@@ -10,6 +10,6 @@ namespace Integration.Application.Interfaces;
 public interface IBusinessUnitRepository
 {
     Task<List<BusinessUnitDBMAP>> GetAllActiveBusinessUnitsAsync();
-    Task<BusinessUnitDBMAP> GetBusinessUnitByCodeAsync(string businessUnitCode);
+    Task<BusinessUnitDBMAP?> GetBusinessUnitByCodeAsync(string businessUnitCode);
     Task<BusinessUnitDBMAP> GetBusinessUnitByDivisionAsync( string division);
 }

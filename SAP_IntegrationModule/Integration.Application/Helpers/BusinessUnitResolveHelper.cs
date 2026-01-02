@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Data.SqlClient;
-using System.ComponentModel.DataAnnotations;
 
 namespace Integration.Application.Helpers;
 
@@ -38,14 +37,14 @@ public sealed class BusinessUnitResolveHelper
         {
             var businessUnit = await _businessUnitRepository.GetBusinessUnitByDivisionAsync(division);
 
-            if (businessUnit != null && !string.IsNullOrWhiteSpace(businessUnit.BusinessUnit))
+            if (businessUnit == null || string.IsNullOrWhiteSpace(businessUnit.BusinessUnit))
             {
-                return businessUnit.BusinessUnit;
+                var errorMessage = $"No active business unit found for  Division: '{division}'";
+                _logger.LogError(errorMessage);
+                throw new InvalidOperationException(errorMessage);
+                
             }
-
-            var errorMessage = $"No active business unit found for  Division: '{division}'";
-            _logger.LogError(errorMessage);
-            throw new InvalidOperationException(errorMessage);
+            return businessUnit.BusinessUnit;
         }
         catch (Exception ex)
         {
@@ -59,32 +58,28 @@ public sealed class BusinessUnitResolveHelper
         if (string.IsNullOrWhiteSpace(businessUnitCode))
             throw new ArgumentException("Business unit code cannot be null or empty", nameof(businessUnitCode));
 
-
         try
         {
             var businessUnit = await _businessUnitRepository.GetBusinessUnitByCodeAsync(businessUnitCode);
 
-            if (businessUnit != null && !string.IsNullOrWhiteSpace(businessUnit?.BusinessUnit))
-            {
-                var connectionString = BuildConnectionString(businessUnit?.DatabaseName ?? "");
-
-                var config = new BusinessUnitConfig
-                {
-                    BusinessUnitCode = businessUnit.BusinessUnit,
-                    DatabaseName = businessUnit.DatabaseName,
-                    BusinessUnitName = businessUnit.BusinessUnitName,
-                    Division = businessUnit.Division,
-                    ConnectionString = connectionString,
-                };
-                return config;
-
-            }
-            else
+            if (businessUnit == null || string.IsNullOrWhiteSpace(businessUnit?.BusinessUnit))
             {
                 var errorMessage = $"Business unit '{businessUnitCode}' not found ";
                 _logger.LogError(errorMessage);
                 throw new KeyNotFoundException(errorMessage);
+
             }
+            var connectionString = BuildConnectionString(businessUnit?.DatabaseName ?? "");
+
+            var config = new BusinessUnitConfig
+            {
+                BusinessUnitCode = businessUnit?.BusinessUnit ??"",
+                DatabaseName = businessUnit?.DatabaseName ?? "",
+                BusinessUnitName = businessUnit?.BusinessUnitName ?? "",
+                Division = businessUnit?.Division ?? "",
+                ConnectionString = connectionString,
+            };
+            return config;
 
         }
         catch (Exception ex)
@@ -111,7 +106,6 @@ public sealed class BusinessUnitResolveHelper
                 ConnectionString = BuildConnectionString(bu.DatabaseName),
             }).ToList();
 
-            _logger.LogDebug("Retrieved {Count} business units", configs.Count);
             return configs;
         }
         catch (Exception ex)

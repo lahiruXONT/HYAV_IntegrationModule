@@ -18,4 +18,7 @@ public interface IRetailerRepository
     Task CreateAsync(Retailer retailer);
     Task UpdateAsync(Retailer retailer);
     Task UpdateGlobalRetailerAsync(Retailer retailer);
+    Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode);
+    Task<bool> PostalCodeTerritoryExistsAsync(string postalCode);
+    Task<List<TerritoryPostalCode>> GetAllTerritoryCodeAsync();
 }

@@ -15,8 +15,8 @@ public class GlobalDbContext : DbContext
     public DbSet<ErrorLog> ErrorLogs { get; set; }
     public DbSet<GlobalRetailer> GlobalRetailers { get; set; }
     public DbSet<GlobalProduct> GlobalProducts { get; set; }
-
     public DbSet<BusinessUnitDBMAP> BusinessUnits { get; set; }
+    public DbSet<TerritoryPostalCode> TerritoryPostalCodes { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<BusinessUnitDBMAP>(entity =>
@@ -98,8 +98,6 @@ public class GlobalDbContext : DbContext
         modelBuilder.Entity<GlobalRetailer>(entity =>
         {
             entity.ToTable("GlobalRetailer", "RD");
-
-            entity.Metadata.SetAnnotation("SqlServer:UseSqlOutputClause", false);
             entity.HasKey(e => e.RecordID)
                 .HasName($"PK_GlobalRetailer");
             entity.HasIndex(e => e.RetailerCode).IsUnique();
@@ -118,7 +116,6 @@ public class GlobalDbContext : DbContext
         modelBuilder.Entity<GlobalProduct>(entity =>
         {
             entity.ToTable("GlobalProduct", "RD");
-            entity.Metadata.SetAnnotation("SqlServer:UseSqlOutputClause", false);
             entity.HasKey(e => e.RecID)
                 .HasName($"PK_GlobalProduct");
             entity.HasIndex(e => e.ProductCode).IsUnique();
@@ -132,6 +129,17 @@ public class GlobalDbContext : DbContext
             entity.Property(e => e.UpdatedOn)
                   .HasDefaultValueSql("GETDATE()");
 
+        });
+        modelBuilder.Entity<TerritoryPostalCode>(entity =>
+        {
+            entity.ToTable("TerritoryPostalCode", "RD");
+            entity.HasKey(e => e.RecID);
+            entity.HasIndex(e => new { e.PostalCode })
+                  .IsUnique()
+                  .HasDatabaseName("UQ_TerritoryPostalCode_PostalCode");
+            entity.Property(e => e.PostalCode)
+                  .IsRequired()
+                  .HasMaxLength(10);
         });
     }
 }
