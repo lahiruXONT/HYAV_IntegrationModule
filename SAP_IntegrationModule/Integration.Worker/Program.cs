@@ -16,6 +16,7 @@ Log.Information("Starting up Worker Service...");
 
 try
 {
+
     // Configure Serilog *before* building the host
     var initialBuilder = Host.CreateApplicationBuilder(args);
     var configuration = initialBuilder.Configuration;
@@ -108,8 +109,18 @@ try
     builder.Services.AddScoped<IMaterialSyncService, MaterialSyncService>();
 
     // --- Add Workers ---
+    builder.Services.AddHostedService<ResilientBackgroundService>();
     builder.Services.AddHostedService<MaterialSyncBackgroundService>();
     builder.Services.AddHostedService<CustomerSyncBackgroundService>();
+
+    // Register options
+    builder.Services.Configure<BackgroundServiceOptions>(
+    nameof(CustomerSyncBackgroundService),
+    builder.Configuration.GetSection("BackgroundServices:CustomerSyncBackgroundService"));
+
+    builder.Services.Configure<BackgroundServiceOptions>(
+        nameof(MaterialSyncBackgroundService),
+        builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService"));
 
     var host = builder.Build();
 

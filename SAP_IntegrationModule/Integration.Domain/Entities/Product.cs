@@ -9,7 +9,6 @@ namespace Integration.Domain.Entities;
 
 public class Product : GlobalProduct
 {
-    [StringLength(4)]
     public string BusinessUnit { get; set; } = string.Empty;
     //public string SalesOrganization { get; set; } = string.Empty;
     //public string DistributionChannel { get; set; } = string.Empty;
