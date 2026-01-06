@@ -10,11 +10,7 @@ namespace Integration.Domain.Entities
     public sealed class TerritoryPostalCode
     {
         public long RecID { get; set; }
-
-        [StringLength(4)]
         public string TerritoryCode { get; set; } = string.Empty;
-
-        [StringLength(10)]
         public string PostalCode { get; set; } = string.Empty;
     }
 }
