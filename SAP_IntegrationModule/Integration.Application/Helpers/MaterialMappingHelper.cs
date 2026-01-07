@@ -32,7 +32,7 @@ public sealed class MaterialMappingHelper
 
         try
         {
-            var businessUnit = await _businessUnitResolver.ResolveAsync(sapMaterial.Division ?? "");
+            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(sapMaterial.SalesOrganization ??"", sapMaterial.Division ?? "");
 
             var product = new Product
             {
@@ -109,12 +109,11 @@ public sealed class MaterialMappingHelper
             errors.Add("Material description is required");
 
         if (string.IsNullOrWhiteSpace(sapMaterial.SalesOrganization))
+        {
             errors.Add("Sales organization is required");
 
-        if (
-            !string.IsNullOrWhiteSpace(sapMaterial.Division)
-            && !await _businessUnitResolver.DivisionExistsAsync(sapMaterial.Division)
-        )
+
+        if (!string.IsNullOrWhiteSpace(sapMaterial.Division) && !await _businessUnitResolver.DivisionExistsAsync(sapMaterial.Division))
         {
             errors.Add($"Division '{sapMaterial.Division}' not found ");
         }
@@ -211,6 +210,7 @@ public sealed class MaterialMappingHelper
 
         return await _businessUnitResolver.BusinessUnitExistsAsync(businessUnit);
     }
+
 
     private DateTime ParseSapDate(string sapDate)
     {

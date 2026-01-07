@@ -60,24 +60,14 @@ builder.Services.AddSwaggerGen(c =>
     );
 });
 
-// --- Global Database contexts ---
-builder.Services.AddDbContext<GlobalDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("GlobalDatabase"))
-);
 
-// --- BU DbContext factory ---
-builder.Services.AddScoped<Func<string, BuDbContext>>(provider =>
-    buCode =>
-    {
-        var buHelper = provider.GetRequiredService<BusinessUnitResolveHelper>();
-        var connectionString = buHelper.BuildConnectionString(buCode);
+// --- System Database contexts ---
+builder.Services.AddDbContext<SystemDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("SystemDB")));
+// --- User Database contexts ---
+builder.Services.AddDbContext<UserDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("UserDB")));
 
-        var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
-        optionsBuilder.UseSqlServer(connectionString);
-
-        return new BuDbContext(optionsBuilder.Options, buCode);
-    }
-);
 
 // --- JWT Authentication ---
 var jwtKey = builder.Configuration["Jwt:Key"];

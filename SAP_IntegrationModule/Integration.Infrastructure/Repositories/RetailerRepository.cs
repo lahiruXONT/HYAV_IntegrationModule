@@ -1,41 +1,31 @@
-﻿using Integration.Application.Helpers;
-using Integration.Application.Interfaces;
+﻿using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
 using Integration.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
-
 namespace Integration.Infrastructure.Repositories;
 
-public class RetailerRepository : IRetailerRepository, IAsyncDisposable
+public sealed class RetailerRepository : IRetailerRepository, IAsyncDisposable
 {
     private readonly GlobalDbContext _globalContext;
     private readonly BusinessUnitResolveHelper _businessUnitHelper;
     private readonly ILogger<RetailerRepository> _logger;
     private IDbContextTransaction? _globalTransaction;
-    private readonly Dictionary<string, IDbContextTransaction> _buTransactions = new();
-    private readonly Dictionary<string, BuDbContext> _buContexts = new();
+    private Dictionary<string, IDbContextTransaction> _buTransactions = new();
+    private Dictionary<string, BuDbContext> _buContexts = new();
 
-    public RetailerRepository(
-        GlobalDbContext globalContext,
-        BusinessUnitResolveHelper businessUnitHelper,
-        ILogger<RetailerRepository> logger
-    )
+    public RetailerRepository(GlobalDbContext globalContext,BusinessUnitResolveHelper businessUnitHelper, ILogger<RetailerRepository> logger)
     {
         _globalContext = globalContext ?? throw new ArgumentNullException(nameof(globalContext));
-        _businessUnitHelper =
-            businessUnitHelper ?? throw new ArgumentNullException(nameof(businessUnitHelper));
+        _businessUnitHelper = businessUnitHelper ?? throw new ArgumentNullException(nameof(businessUnitHelper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    // TRANSACTION MANAGEMENT
+    
+
     public async Task BeginTransactionAsync()
-    {
-        _globalTransaction = await _globalContext.Database.BeginTransactionAsync();
-        _buTransactions.Clear();
-        _buContexts.Clear();
-    }
+        => _transaction = await _context.Database.BeginTransactionAsync();
 
     public async Task CommitTransactionAsync()
     {
@@ -50,6 +40,7 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
                     var buChanges = await context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
+
                     await transaction.DisposeAsync();
                     await context.DisposeAsync();
                 }
@@ -63,6 +54,7 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
             _buTransactions.Clear();
             _buContexts.Clear();
             _globalTransaction = null;
+
         }
         catch (Exception ex)
         {
@@ -70,33 +62,28 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
             await RollbackTransactionAsync();
             throw;
         }
+        finally
+        {
+            await _transaction!.DisposeAsync();
+            _transaction = null;
+        }
     }
 
     public async Task RollbackTransactionAsync()
     {
-        try
+        if (_transaction != null)
         {
-            if (_globalTransaction != null)
-            {
-                await _globalTransaction.RollbackAsync();
-                await _globalTransaction.DisposeAsync();
-                _globalTransaction = null;
-            }
-
-            foreach (var (buCode, transaction) in _buTransactions)
-            {
-                await transaction.RollbackAsync();
-                await transaction.DisposeAsync();
-
-                if (_buContexts.TryGetValue(buCode, out var context))
-                {
-                    await context.DisposeAsync();
-                }
-            }
+            await _transaction.RollbackAsync();
+            await _transaction.DisposeAsync();
+            _transaction = null;
+        }
+        _context.ChangeTracker.Clear();
+    }
 
             _buTransactions.Clear();
             _buContexts.Clear();
             _globalContext.ChangeTracker.Clear();
+
         }
         catch (Exception ex)
         {
@@ -108,34 +95,22 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
     public async Task<Retailer?> GetByRetailerCodeAsync(string retailerCode, string businessUnit)
     {
         if (string.IsNullOrWhiteSpace(retailerCode))
-            throw new ArgumentException(
-                "Retailer code cannot be null or empty",
-                nameof(retailerCode)
-            );
+            throw new ArgumentException("Retailer code cannot be null or empty", nameof(retailerCode));
 
         if (string.IsNullOrWhiteSpace(businessUnit))
-            throw new ArgumentException(
-                "Business unit cannot be null or empty",
-                nameof(businessUnit)
-            );
+            throw new ArgumentException("Business unit cannot be null or empty", nameof(businessUnit));
+
 
         try
         {
             using var context = await CreateBuDbContextAsync(businessUnit);
-            return await context
-                .Retailers.AsNoTracking()
-                .FirstOrDefaultAsync(r =>
-                    r.RetailerCode == retailerCode && r.BusinessUnit == businessUnit
-                );
+            return await context.Retailers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RetailerCode == retailerCode && r.BusinessUnit == businessUnit);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Error getting retailer by code: {Code} in BU: {BU}",
-                retailerCode,
-                businessUnit
-            );
+            _logger.LogError(ex, "Error getting retailer by code: {Code} in BU: {BU}", retailerCode, businessUnit);
             throw;
         }
     }
@@ -143,15 +118,13 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
     public async Task<GlobalRetailer?> GetGlobalRetailerAsync(string retailerCode)
     {
         if (string.IsNullOrWhiteSpace(retailerCode))
-            throw new ArgumentException(
-                "Retailer code cannot be null or empty",
-                nameof(retailerCode)
-            );
+            throw new ArgumentException("Retailer code cannot be null or empty", nameof(retailerCode));
+
 
         try
         {
-            return await _globalContext
-                .GlobalRetailers.AsNoTracking()
+            return await _globalContext.GlobalRetailers
+                .AsNoTracking()
                 .FirstOrDefaultAsync(g => g.RetailerCode == retailerCode);
         }
         catch (Exception ex)
@@ -167,10 +140,8 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
             throw new ArgumentNullException(nameof(retailer));
 
         if (string.IsNullOrWhiteSpace(retailer.BusinessUnit))
-            throw new ArgumentException(
-                "Retailer business unit cannot be null or empty",
-                nameof(retailer.BusinessUnit)
-            );
+            throw new ArgumentException("Retailer business unit cannot be null or empty", nameof(retailer.BusinessUnit));
+
 
         try
         {
@@ -179,15 +150,12 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
             await UpdateGlobalRetailerAsync(retailer);
 
             buContext.Retailers.Add(retailer);
+
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Error creating retailer: {Code} in BU: {BU}",
-                retailer.RetailerCode,
-                retailer.BusinessUnit
-            );
+            _logger.LogError(ex, "Error creating retailer: {Code} in BU: {BU}",
+                retailer.RetailerCode, retailer.BusinessUnit);
             throw;
         }
     }
@@ -198,10 +166,8 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
             throw new ArgumentNullException(nameof(retailer));
 
         if (string.IsNullOrWhiteSpace(retailer.BusinessUnit))
-            throw new ArgumentException(
-                "Retailer business unit cannot be null or empty",
-                nameof(retailer.BusinessUnit)
-            );
+            throw new ArgumentException("Retailer business unit cannot be null or empty", nameof(retailer.BusinessUnit));
+
 
         try
         {
@@ -209,37 +175,33 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
 
             await UpdateGlobalRetailerAsync(retailer);
 
-            var existing = await buContext.Retailers.FirstAsync(r =>
-                r.RetailerCode == retailer.RetailerCode && r.BusinessUnit == retailer.BusinessUnit
-            );
-
+            var existing = await buContext.Retailers
+                        .FirstAsync(r => r.RetailerCode == retailer.RetailerCode
+                         && r.BusinessUnit == retailer.BusinessUnit);
+            
             existing.TerritoryCode = retailer.TerritoryCode;
             existing.CreditLimit = retailer.CreditLimit;
             existing.Status = retailer.Status;
             existing.UpdatedOn = DateTime.Now;
             existing.UpdatedBy = "SAP_SYNC";
             buContext.Retailers.Update(existing);
+
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Error updating retailer: {Code} in BU: {BU}",
-                retailer.RetailerCode,
-                retailer.BusinessUnit
-            );
+            _logger.LogError(ex, "Error updating retailer: {Code} in BU: {BU}",
+                retailer.RetailerCode, retailer.BusinessUnit);
             throw;
         }
     }
-
     public async Task UpdateGlobalRetailerAsync(Retailer retailer)
     {
         if (retailer == null)
             throw new ArgumentNullException(nameof(retailer));
 
-        try
-        {
-            var existing = await GetGlobalRetailerAsync(retailer.RetailerCode);
+    private async Task UpdateOrInsertGlobalRetailerAsync(Retailer retailer)
+    {
+        var global = await GetGlobalTrackedAsync(retailer.RetailerCode);
 
             if (existing == null)
             {
@@ -260,7 +222,7 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
                     CreatedOn = DateTime.Now,
                     UpdatedOn = DateTime.Now,
                     CreatedBy = "SAP_SYNC",
-                    UpdatedBy = "SAP_SYNC",
+                    UpdatedBy = "SAP_SYNC"
                 };
 
                 _globalContext.GlobalRetailers.Add(globalRetailer);
@@ -282,37 +244,32 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
                 existing.UpdatedBy = "SAP_SYNC";
                 _globalContext.GlobalRetailers.Update(existing);
             }
+
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Error updating GlobalRetailer | RetailerCode: {RetailerCode}",
-                retailer.RetailerCode
+            _logger.LogError(ex,"Error updating GlobalRetailer | RetailerCode: {RetailerCode}",retailer.RetailerCode
             );
 
             throw;
         }
     }
-
-    public async Task<bool> PostalCodeTerritoryExistsAsync(string postalCode)
+    public async Task<bool>PostalCodeTerritoryExistsAsync(string postalCode)
     {
         if (string.IsNullOrWhiteSpace(postalCode))
             throw new ArgumentException("Postal code cannot be null or empty", nameof(postalCode));
 
         try
         {
-            return await _globalContext
-                .TerritoryPostalCodes.AsNoTracking()
-                .AnyAsync(t => t.PostalCode == postalCode);
+            return await _globalContext.TerritoryPostalCodes.AsNoTracking().AnyAsync(t => t.PostalCode == postalCode);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting territory by postal code: {Code}", postalCode);
             throw;
         }
-    }
 
+    }
     public async Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode)
     {
         if (string.IsNullOrWhiteSpace(postalCode))
@@ -320,9 +277,7 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
 
         try
         {
-            return await _globalContext
-                .TerritoryPostalCodes.AsNoTracking()
-                .FirstOrDefaultAsync(t => t.PostalCode == postalCode);
+            return await _globalContext.TerritoryPostalCodes.AsNoTracking().FirstOrDefaultAsync(t => t.PostalCode == postalCode);
         }
         catch (Exception ex)
         {
@@ -333,6 +288,7 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
 
     public async Task<List<TerritoryPostalCode>> GetAllTerritoryCodeAsync()
     {
+
         try
         {
             return await _globalContext.TerritoryPostalCodes.AsNoTracking().ToListAsync();
@@ -346,6 +302,7 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
 
     private async Task<BuDbContext> CreateBuDbContextAsync(string businessUnit)
     {
+
         var buConfig = await _businessUnitHelper.GetBusinessUnitConfigAsync(businessUnit);
 
         var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
@@ -405,12 +362,10 @@ public class RetailerRepository : IRetailerRepository, IAsyncDisposable
             }
         }
     }
-
     public void Dispose()
     {
         Dispose(disposing: true);
     }
-
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposed && disposing)

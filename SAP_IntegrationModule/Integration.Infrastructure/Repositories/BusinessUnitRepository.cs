@@ -13,16 +13,16 @@ namespace Integration.Infrastructure.Repositories;
 
 public class BusinessUnitRepository : IBusinessUnitRepository
 {
-    private readonly GlobalDbContext _context;
+    private readonly SystemDbContext _context;
     private readonly ILogger<BusinessUnitRepository> _logger;
 
-    public BusinessUnitRepository(GlobalDbContext context, ILogger<BusinessUnitRepository> logger)
+    public BusinessUnitRepository(SystemDbContext context,ILogger<BusinessUnitRepository> logger)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<List<BusinessUnitDBMAP>> GetAllActiveBusinessUnitsAsync()
+    public async Task<List<ZYBusinessUnit>> GetAllActiveBusinessUnitsAsync()
     {
         try
         {
@@ -34,14 +34,10 @@ public class BusinessUnitRepository : IBusinessUnitRepository
             throw;
         }
     }
-
-    public async Task<BusinessUnitDBMAP?> GetBusinessUnitByCodeAsync(string businessUnitCode)
+    public async Task<ZYBusinessUnit?> GetBusinessUnitByCodeAsync(string businessUnitCode)
     {
         if (string.IsNullOrWhiteSpace(businessUnitCode))
-            throw new ArgumentException(
-                "Business unit code cannot be null or empty",
-                nameof(businessUnitCode)
-            );
+            throw new ArgumentException("Business unit code cannot be null or empty", nameof(businessUnitCode));
 
         try
         {
@@ -55,22 +51,39 @@ public class BusinessUnitRepository : IBusinessUnitRepository
             throw;
         }
     }
-
-    public async Task<BusinessUnitDBMAP> GetBusinessUnitByDivisionAsync(string division)
+    public async Task<ZYBusinessUnit?> GetBusinessUnitBySalesOrgDivisionAsync(string salesOrg, string division)
     {
-        if (string.IsNullOrWhiteSpace(division))
-            throw new ArgumentException("Division cannot be null or empty", nameof(division));
-
         try
         {
-            return await _context
-                    .BusinessUnits.AsNoTracking()
-                    .FirstOrDefaultAsync(bu => bu.Division == division)
-                ?? new BusinessUnitDBMAP { };
+            return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.SalesOrganization == salesOrg && bu.Division == division);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting business unit by Division: {Division}", division);
+            _logger.LogError(ex, "Error getting business unit by Sales Organization: {salesOrg}, Division: {Division}", salesOrg, division);
+            throw;
+        }
+    }
+    public async Task<bool> BusinessUnitsExistBySalesOrgAsync(string salesOrg)
+    {
+        try
+        {
+            return await _context.BusinessUnits.AsNoTracking().AnyAsync(bu => bu.SalesOrganization == salesOrg );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking business units by Sales Organization: {salesOrg}", salesOrg);
+            throw;
+        }
+    }
+    public async Task<bool> BusinessUnitExistBySalesOrgDivisionAsync(string salesOrg, string division)
+    {
+        try
+        {
+            return await _context.BusinessUnits.AsNoTracking().FirstOrDefaultAsync(bu => bu.Division == division) ?? new BusinessUnitDBMAP { } ;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking business unit by Sales Organization: {salesOrg}, Division: {Division}",salesOrg, division);
             throw;
         }
     }

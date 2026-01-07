@@ -10,17 +10,20 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Integration.Infrastructure.Repositories;
+   
 
-public class AuthRepository : IAuthRepository
-{
-    private readonly GlobalDbContext _context;
-    private readonly ILogger<AuthRepository> _logger;
-
-    public AuthRepository(GlobalDbContext context, ILogger<AuthRepository> logger)
+    public class AuthRepository : IAuthRepository
     {
-        _context = context;
-        _logger = logger;
-    }
+        private readonly UserDbContext _context;
+        private readonly ILogger<AuthRepository> _logger;
+
+        public AuthRepository(
+            GlobalDbContext context,
+            ILogger<AuthRepository> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
 
     public async Task<User?> GetUserAsync(string businessUnit, string username)
     {

@@ -28,15 +28,13 @@ try
     // --- create the host builder and configure services ---
     var builder = Host.CreateApplicationBuilder(args);
 
-    // --- Global Database contexts ---
-    builder.Services.AddDbContext<GlobalDbContext>(options =>
+    // --- System Database contexts ---
+    builder.Services.AddDbContext<SystemDbContext>(options =>
     {
-        var connectionString = builder.Configuration.GetConnectionString("GlobalDatabase");
+        var connectionString = builder.Configuration.GetConnectionString("SystemDB");
         if (string.IsNullOrEmpty(connectionString))
         {
-            throw new InvalidOperationException(
-                "GlobalDatabase connection string is not configured"
-            );
+            throw new InvalidOperationException("SystemDB connection string is not configured");
         }
 
         options.UseSqlServer(
@@ -54,29 +52,23 @@ try
     });
 
     // --- BU DbContext factory ---
-    builder.Services.AddScoped<Func<string, BuDbContext>>(provider =>
-        buCode =>
+    builder.Services.AddScoped<Func<string, BuDbContext>>(provider => buCode =>
+    {
+        var buHelper = provider.GetRequiredService<BusinessUnitResolveHelper>();
+        var connectionString = buHelper.BuildConnectionString(buCode); 
+
+        var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
+        optionsBuilder.UseSqlServer(connectionString, sqlOptions =>
         {
-            var buHelper = provider.GetRequiredService<BusinessUnitResolveHelper>();
-            var connectionString = buHelper.BuildConnectionString(buCode);
+            sqlOptions.CommandTimeout(300);
+            sqlOptions.EnableRetryOnFailure( 
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                new[] { 1205, 4060 }); //we need to add other eror codes if needed
+        });
 
-            var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
-            optionsBuilder.UseSqlServer(
-                connectionString,
-                sqlOptions =>
-                {
-                    sqlOptions.CommandTimeout(300);
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(30),
-                        new[] { 1205, 4060 }
-                    ); //we need to add other eror codes if needed
-                }
-            );
-
-            return new BuDbContext(optionsBuilder.Options, buCode);
-        }
-    );
+        return new BuDbContext(optionsBuilder.Options, buCode);
+    });
 
     // --- SAP HTTP Client ---
     builder.Services.AddHttpClient<ISapClient, SapApiClient>(

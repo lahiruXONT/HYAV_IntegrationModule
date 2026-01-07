@@ -10,10 +10,7 @@ namespace Integration.Domain.Entities;
 public abstract class BaseAuditableEntity
 {
     public DateTime UpdatedOn { get; set; }
-
-    [StringLength(40)]
     public string UpdatedBy { get; set; } = string.Empty;
     public DateTime CreatedOn { get; set; }
-    [StringLength(40)]
     public string CreatedBy { get; set; } = string.Empty;
 }

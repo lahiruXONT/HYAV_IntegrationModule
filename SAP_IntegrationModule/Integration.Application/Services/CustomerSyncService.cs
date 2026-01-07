@@ -52,12 +52,8 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 return result;
             }
 
-            result.TotalRecords = sapCustomers.Count;
 
-            var groups = sapCustomers
-                .Where(c => !string.IsNullOrWhiteSpace(c.Customer))
-                .GroupBy(c => c.Customer)
-                .ToList();
+            var groups = sapCustomers.GroupBy(c => c.Customer).ToList();
 
             await _customerRepository.BeginTransactionAsync();
 
@@ -128,18 +124,14 @@ public sealed class CustomerSyncService : ICustomerSyncService
 
                 if (existing == null)
                 {
-                    xontRetailer.CreatedOn = DateTime.Now;
-                    xontRetailer.CreatedBy = "SAP_SYNC";
                     await _customerRepository.CreateAsync(xontRetailer);
                     result.NewCustomers++;
                 }
                 else
                 {
-                    if (_mappingHelper.HasChanges(existing, xontRetailer))
+                    if (_mappingHelper.HasRetailerChanges(existing, xontRetailer))
                     {
                         _mappingHelper.UpdateCustomer(existing, xontRetailer);
-                        existing.UpdatedOn = DateTime.Now;
-                        existing.UpdatedBy = "SAP_SYNC";
                         await _customerRepository.UpdateAsync(existing);
                         result.UpdatedCustomers++;
                     }
@@ -151,17 +143,9 @@ public sealed class CustomerSyncService : ICustomerSyncService
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Error processing customer {Code} in sync ",
-                    sapCustomer.Customer
-                );
+                _logger.LogError(ex, "Error processing customer {Code} in sync ", sapCustomer.Customer);
 
-                throw new CustomerSyncException(
-                    $"Failed to process customer {sapCustomer.Customer}: {ex.Message}",
-                    sapCustomer.Customer,
-                    ex
-                );
+                throw new CustomerSyncException( $"Failed to process customer {sapCustomer.Customer}: {ex.Message}", sapCustomer.Customer, ex);
             }
         }
     }

@@ -47,6 +47,8 @@ public sealed class MaterialSyncService : IMaterialSyncService
 
             var sapMaterials = await _sapClient.GetMaterialChangesAsync(request);
 
+            result.TotalRecords = sapMaterials?.Count ?? 0;
+
             if (sapMaterials == null || !sapMaterials.Any())
             {
                 result.Success = true;
@@ -62,8 +64,12 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 .ToList();
 
             var invalidCount = sapMaterials.Count - validMaterials.Count;
+            
 
-            var materialGroups = validMaterials.GroupBy(m => new { m.Material }).ToList();
+            var materialGroups = validMaterials
+                .GroupBy(m => new { m.Material })
+                .ToList();
+
 
             await _productRepository.BeginTransactionAsync();
 
@@ -71,7 +77,10 @@ public sealed class MaterialSyncService : IMaterialSyncService
             {
                 foreach (var group in materialGroups)
                 {
-                    await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
+                    await ProcessMaterialGroupAsync(
+                        group.Key.Material,
+                        group.ToList(),
+                        result);
                 }
 
                 await _productRepository.CommitTransactionAsync();
@@ -124,11 +133,6 @@ public sealed class MaterialSyncService : IMaterialSyncService
             {
                 var xontProduct = await _mappingHelper.MapSapToXontMaterialAsync(sapMaterial);
 
-                if (!await _mappingHelper.HasValidBusinessUnitAsync(xontProduct.BusinessUnit))
-                {
-                    result.SkippedMaterials++;
-                    continue;
-                }
 
                 var existing = await _productRepository.GetByProductCodeAsync(
                     xontProduct.ProductCode,
@@ -137,8 +141,6 @@ public sealed class MaterialSyncService : IMaterialSyncService
 
                 if (existing == null)
                 {
-                    xontProduct.CreatedOn = DateTime.Now;
-                    xontProduct.CreatedBy = "SAP_SYNC";
                     await _productRepository.CreateAsync(xontProduct);
                     result.NewMaterials++;
                 }
@@ -147,8 +149,6 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     if (_mappingHelper.HasChanges(existing, xontProduct))
                     {
                         _mappingHelper.UpdateMaterial(existing, xontProduct);
-                        existing.UpdatedOn = DateTime.Now;
-                        existing.UpdatedBy = "SAP_SYNC";
                         await _productRepository.UpdateAsync(existing);
                         result.UpdatedMaterials++;
                     }
