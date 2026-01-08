@@ -57,15 +57,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 return result;
             }
 
-            result.TotalRecords = sapMaterials.Count;
-
-            var validMaterials = sapMaterials
-                .Where(m => _mappingHelper.HasValidMaterialCode(m.Material))
-                .ToList();
-
-            var invalidCount = sapMaterials.Count - validMaterials.Count;
-
-            var materialGroups = validMaterials.GroupBy(m => new { m.Material }).ToList();
+            var materialGroups = sapMaterials.GroupBy(m => new { m.Material }).ToList();
 
             await _productRepository.BeginTransactionAsync();
 
@@ -120,6 +112,27 @@ public sealed class MaterialSyncService : IMaterialSyncService
         MaterialSyncResultDto result
     )
     {
+        if (!sapMaterials.Any())
+            return;
+
+        var globalMaterialObj = await _mappingHelper.MapSapToXontGlobalMaterialAsync(
+            sapMaterials[0]
+        );
+
+        var globalMaterialExisting = await _productRepository.GetGlobalProductAsync(
+            globalMaterialObj.ProductCode
+        );
+        if (globalMaterialExisting == null)
+        {
+            await _productRepository.CreateGlobalProductAsync(globalMaterialObj);
+        }
+        else
+        {
+            if (_mappingHelper.HasGlobalMaterialChanges(globalMaterialExisting, globalMaterialObj))
+            {
+                _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
+            }
+        }
         foreach (var sapMaterial in sapMaterials)
         {
             try
@@ -133,15 +146,14 @@ public sealed class MaterialSyncService : IMaterialSyncService
 
                 if (existing == null)
                 {
-                    await _productRepository.CreateAsync(xontProduct);
+                    await _productRepository.CreateProductAsync(xontProduct);
                     result.NewMaterials++;
                 }
                 else
                 {
-                    if (_mappingHelper.HasChanges(existing, xontProduct))
+                    if (_mappingHelper.HasMaterialChanges(existing, xontProduct))
                     {
                         _mappingHelper.UpdateMaterial(existing, xontProduct);
-                        await _productRepository.UpdateAsync(existing);
                         result.UpdatedMaterials++;
                     }
                     else

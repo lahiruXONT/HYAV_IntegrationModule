@@ -90,6 +90,10 @@ public sealed class CustomerSyncResultDto
     public int NewCustomers { get; set; }
     public int UpdatedCustomers { get; set; }
     public int SkippedCustomers { get; set; }
+    public int FailedRecords { get; set; }
     public string Message { get; set; } = string.Empty;
     public DateTime SyncDate { get; set; }
+    public long ElapsedMilliseconds { get; set; }
+    public string CorrelationId { get; set; } = Guid.NewGuid().ToString();
+    public List<string>? ValidationErrors { get; set; }
 }

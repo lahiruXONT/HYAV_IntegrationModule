@@ -51,7 +51,7 @@ public sealed class RetailerRepository : IRetailerRepository, IAsyncDisposable
     public Task<Retailer?> GetByRetailerCodeAsync(string code, string bu) =>
         _context.Retailers.FirstOrDefaultAsync(r => r.RetailerCode == code && r.BusinessUnit == bu);
 
-    private Task<GlobalRetailer?> GetGlobalTrackedAsync(string code) =>
+    public Task<GlobalRetailer?> GetGlobalRetailerAsync(string code) =>
         _context.GlobalRetailers.FirstOrDefaultAsync(g => g.RetailerCode == code);
 
     public Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode) =>
@@ -60,45 +60,14 @@ public sealed class RetailerRepository : IRetailerRepository, IAsyncDisposable
     public Task<bool> PostalCodeTerritoryExistsAsync(string postalCode) =>
         _context.TerritoryPostalCodes.AnyAsync(t => t.PostalCode == postalCode);
 
-    public async Task CreateAsync(Retailer retailer)
+    public async Task CreateRetailerAsync(Retailer retailer)
     {
-        await UpsertGlobalRetailerAsync(retailer);
-        _context.Retailers.Add(retailer);
+        await _context.Retailers.AddAsync(retailer);
     }
 
-    public async Task UpdateAsync(Retailer retailer)
+    public async Task CreateGlobalRetailerAsync(GlobalRetailer retailer)
     {
-        await UpsertGlobalRetailerAsync(retailer);
-    }
-
-    private async Task UpsertGlobalRetailerAsync(Retailer retailer)
-    {
-        var global = await GetGlobalTrackedAsync(retailer.RetailerCode);
-
-        if (global == null)
-        {
-            _context.GlobalRetailers.Add(
-                new GlobalRetailer
-                {
-                    RetailerCode = retailer.RetailerCode,
-                    RetailerName = retailer.RetailerName,
-                    AddressLine1 = retailer.AddressLine1,
-                    TelephoneNumber = retailer.TelephoneNumber,
-                    CreatedOn = DateTime.UtcNow,
-                    UpdatedOn = DateTime.UtcNow,
-                    CreatedBy = "SAP_SYNC",
-                    UpdatedBy = "SAP_SYNC",
-                }
-            );
-        }
-        else
-        {
-            global.RetailerName = retailer.RetailerName;
-            global.AddressLine1 = retailer.AddressLine1;
-            global.TelephoneNumber = retailer.TelephoneNumber;
-            global.UpdatedOn = DateTime.UtcNow;
-            global.UpdatedBy = "SAP_SYNC";
-        }
+        await _context.GlobalRetailers.AddAsync(retailer);
     }
 
     public async ValueTask DisposeAsync()

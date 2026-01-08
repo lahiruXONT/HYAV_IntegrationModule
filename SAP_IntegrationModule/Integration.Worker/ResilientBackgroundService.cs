@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
@@ -16,8 +16,9 @@ public abstract class ResilientBackgroundService : BackgroundService
     private int _consecutiveFailures;
     private DateTime? _lastSuccessfulRun;
     private BackgroundServiceState _state = BackgroundServiceState.Stopped;
+    private readonly HealthMetrics _healthMetrics = new();
 
-    protected ResilientBackgroundService(
+    public ResilientBackgroundService(
         ILogger logger,
         IOptionsMonitor<BackgroundServiceOptions> optionsMonitor,
         string serviceName
@@ -32,7 +33,7 @@ public abstract class ResilientBackgroundService : BackgroundService
             .WaitAndRetryAsync(
                 retryCount: 3,
                 attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
-                (ex, delay, retry, _) =>
+                onRetry: (ex, delay, retry, _) =>
                 {
                     _logger.LogWarning(
                         ex,
@@ -49,10 +50,19 @@ public abstract class ResilientBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var executionId = Guid.NewGuid().ToString("N");
+
         using (LogContext.PushProperty("ServiceName", _serviceName))
+        using (LogContext.PushProperty("ExecutionId", executionId))
         {
             _state = BackgroundServiceState.Starting;
-            _logger.LogInformation("{ServiceName} starting", _serviceName);
+            _healthMetrics.ServiceStartTime = DateTime.UtcNow;
+
+            _logger.LogInformation(
+                "{ServiceName} starting with execution ID: {ExecutionId}",
+                _serviceName,
+                executionId
+            );
 
             var options = _optionsMonitor.Get(_serviceName);
 
@@ -63,12 +73,12 @@ public abstract class ResilientBackgroundService : BackgroundService
                     _serviceName,
                     options.InitialDelay
                 );
-
                 await Task.Delay(options.InitialDelay, stoppingToken);
             }
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                var cycleStartTime = DateTime.UtcNow;
                 options = _optionsMonitor.Get(_serviceName);
 
                 if (!options.IsEnabled)
@@ -82,16 +92,24 @@ public abstract class ResilientBackgroundService : BackgroundService
 
                 try
                 {
+                    _logger.LogInformation(
+                        "{ServiceName} starting execution cycle",
+                        _serviceName
+                    );
+
                     await ExecuteOnceAsync(stoppingToken);
 
                     _consecutiveFailures = 0;
                     _lastSuccessfulRun = DateTime.UtcNow;
+                    _healthMetrics.SuccessfulCycles++;
+                    _healthMetrics.LastSuccessfulRun = DateTime.UtcNow;
 
                     var delay = CalculateNextRunDelay(options);
 
                     _logger.LogInformation(
-                        "{ServiceName} completed successfully. Next run in {Delay}",
+                        "{ServiceName} completed successfully in {Duration}. Next run in {Delay}",
                         _serviceName,
+                        DateTime.UtcNow - cycleStartTime,
                         delay
                     );
 
@@ -105,27 +123,42 @@ public abstract class ResilientBackgroundService : BackgroundService
                 catch (Exception ex)
                 {
                     _consecutiveFailures++;
-                    await HandleFailureAsync(ex, options, stoppingToken);
+                    _healthMetrics.FailedCycles++;
+                    await HandleFailureAsync(ex, options, stoppingToken, cycleStartTime);
+                }
+                finally
+                {
+                    _healthMetrics.TotalCycles++;
+                    _healthMetrics.LastRunDuration = DateTime.UtcNow - cycleStartTime;
                 }
             }
 
             _state = BackgroundServiceState.Stopped;
+            _healthMetrics.ServiceStopTime = DateTime.UtcNow;
+
+            LogHealthMetrics();
             _logger.LogInformation("{ServiceName} stopped", _serviceName);
         }
     }
 
     private async Task ExecuteOnceAsync(CancellationToken token)
     {
-        var executionId = Guid.NewGuid().ToString("N");
+        var correlationId = Guid.NewGuid().ToString("N");
 
-        using (LogContext.PushProperty("ExecutionId", executionId))
-        using (LogContext.PushProperty("CorrelationId", executionId))
+        using (LogContext.PushProperty("CorrelationId", correlationId))
         {
-            _logger.LogInformation("{ServiceName} execution started", _serviceName);
+            _logger.LogInformation(
+                "{ServiceName} execution started with correlation ID: {CorrelationId}",
+                _serviceName,
+                correlationId
+            );
 
             await _retryPolicy.ExecuteAsync(ct => ExecuteCycleAsync(ct), token);
 
-            _logger.LogInformation("{ServiceName} execution finished", _serviceName);
+            _logger.LogInformation(
+                "{ServiceName} execution finished",
+                _serviceName
+            );
         }
     }
 
@@ -134,37 +167,42 @@ public abstract class ResilientBackgroundService : BackgroundService
     private async Task HandleFailureAsync(
         Exception ex,
         BackgroundServiceOptions options,
-        CancellationToken token
+        CancellationToken token,
+        DateTime cycleStartTime
     )
     {
-        _logger.LogError(
-            ex,
-            "{ServiceName} failed ({Failures}/{MaxFailures})",
-            _serviceName,
-            _consecutiveFailures,
-            options.MaxConsecutiveFailures
-        );
-
-        LogDetailedError(ex);
-
-        if (_consecutiveFailures >= options.MaxConsecutiveFailures)
+        using (LogContext.PushProperty("FailureCount", _consecutiveFailures))
         {
-            _state = BackgroundServiceState.Failed;
-
-            _logger.LogCritical(
-                "{ServiceName} marked FAILED after {Failures} consecutive errors",
+            _logger.LogError(
+                ex,
+                "{ServiceName} failed ({Failures}/{MaxFailures}) after {Duration}",
                 _serviceName,
-                _consecutiveFailures
+                _consecutiveFailures,
+                options.MaxConsecutiveFailures,
+                DateTime.UtcNow - cycleStartTime
             );
 
-            return;
+            LogDetailedError(ex);
+
+            if (_consecutiveFailures >= options.MaxConsecutiveFailures)
+            {
+                _state = BackgroundServiceState.Failed;
+
+                _logger.LogCritical(
+                    "{ServiceName} marked FAILED after {Failures} consecutive errors",
+                    _serviceName,
+                    _consecutiveFailures
+                );
+
+                return;
+            }
+
+            var delay = CalculateBackoffDelay(_consecutiveFailures);
+
+            _logger.LogWarning("{ServiceName} retrying after {Delay}", _serviceName, delay);
+
+            await Task.Delay(delay, token);
         }
-
-        var delay = CalculateBackoffDelay(_consecutiveFailures);
-
-        _logger.LogWarning("{ServiceName} retrying after {Delay}", _serviceName, delay);
-
-        await Task.Delay(delay, token);
     }
 
     private void PauseService()
@@ -180,13 +218,20 @@ public abstract class ResilientBackgroundService : BackgroundService
     {
         if (!string.IsNullOrWhiteSpace(options.DailyScheduleTime))
         {
-            var today = DateTime.UtcNow.Date;
-            var scheduled = today.Add(TimeSpan.Parse(options.DailyScheduleTime));
+            try
+            {
+                var today = DateTime.UtcNow.Date;
+                var scheduled = today.Add(TimeSpan.Parse(options.DailyScheduleTime));
 
-            if (scheduled <= DateTime.UtcNow)
-                scheduled = scheduled.AddDays(1);
+                if (scheduled <= DateTime.UtcNow)
+                    scheduled = scheduled.AddDays(1);
 
-            return scheduled - DateTime.UtcNow;
+                return scheduled - DateTime.UtcNow;
+            }
+            catch (FormatException)
+            {
+                return options.Interval;
+            }
         }
 
         return options.Interval;
@@ -201,17 +246,23 @@ public abstract class ResilientBackgroundService : BackgroundService
 
     private void LogDetailedError(Exception ex)
     {
-        var details = new
+        var errorDetails = new
         {
             Service = _serviceName,
             State = _state.ToString(),
             Failures = _consecutiveFailures,
             LastSuccess = _lastSuccessfulRun,
-            Error = ex.Message,
-            StackTrace = ex.StackTrace,
+            ErrorType = ex.GetType().Name,
+            ErrorMessage = ex.Message,
+            StackTrace = ex.StackTrace?.Substring(0, Math.Min(500, ex.StackTrace.Length)),
+            InnerException = ex.InnerException?.Message
         };
 
-        _logger.LogError("{ServiceName} error details {@Details}", _serviceName, details);
+        _logger.LogError(
+            "{ServiceName} error details {@ErrorDetails}",
+            _serviceName,
+            errorDetails
+        );
     }
 
     private void OnConfigurationChanged(BackgroundServiceOptions options, string name)
@@ -228,24 +279,27 @@ public abstract class ResilientBackgroundService : BackgroundService
         }
     }
 
-    private static bool IsTransientException(Exception ex) =>
-        ex is HttpRequestException || ex is TimeoutException || ex is TaskCanceledException;
+    private void LogHealthMetrics()
+    {
+        _logger.LogInformation(
+            "{ServiceName} health metrics: {@Metrics}",
+            _serviceName,
+            _healthMetrics
+        );
+    }
+
+    private static bool IsTransientException(Exception ex)
+    {
+        return ex is HttpRequestException
+            || ex is TimeoutException
+            || ex is TaskCanceledException
+            || (ex is SqlException sqlEx && IsTransientSqlError(sqlEx.Number));
+    }
+
+    private static bool IsTransientSqlError(int errorNumber)
+    {
+        int[] transientErrors = { 1205, 4060, 40197, 40501, 40613, 49918, 49919, 49920, 4221 };
+        return transientErrors.Contains(errorNumber);
+    }
 }
 
-public enum BackgroundServiceState
-{
-    Starting,
-    Running,
-    Paused,
-    Stopped,
-    Failed,
-}
-
-public class BackgroundServiceOptions
-{
-    public bool IsEnabled { get; set; } = true;
-    public TimeSpan Interval { get; set; } = TimeSpan.FromHours(1);
-    public TimeSpan InitialDelay { get; set; } = TimeSpan.FromMinutes(1);
-    public string? DailyScheduleTime { get; set; }
-    public int MaxConsecutiveFailures { get; set; } = 10;
-}

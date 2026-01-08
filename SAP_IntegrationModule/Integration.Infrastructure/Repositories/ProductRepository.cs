@@ -15,28 +15,25 @@ public sealed class ProductRepository : IProductRepository, IAsyncDisposable
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public async Task BeginTransactionAsync()
-    {
+    public async Task BeginTransactionAsync() =>
         _transaction = await _context.Database.BeginTransactionAsync();
-    }
 
     public async Task CommitTransactionAsync()
     {
         try
         {
             await _context.SaveChangesAsync();
-
-            if (_transaction != null)
-            {
-                await _transaction.CommitAsync();
-                await _transaction.DisposeAsync();
-                _transaction = null;
-            }
+            await _transaction!.CommitAsync();
         }
         catch
         {
             await RollbackTransactionAsync();
             throw;
+        }
+        finally
+        {
+            await _transaction!.DisposeAsync();
+            _transaction = null;
         }
     }
 
@@ -57,62 +54,17 @@ public sealed class ProductRepository : IProductRepository, IAsyncDisposable
             p.ProductCode == productCode && p.BusinessUnit == businessUnit
         );
 
-    private Task<GlobalProduct?> GetGlobalTrackedAsync(string productCode) =>
+    public Task<GlobalProduct?> GetGlobalProductAsync(string productCode) =>
         _context.GlobalProducts.FirstOrDefaultAsync(g => g.ProductCode == productCode);
 
-    public async Task CreateAsync(Product product)
+    public async Task CreateProductAsync(Product product)
     {
-        await UpsertGlobalProductAsync(product);
-        _context.Products.Add(product);
+        await _context.Products.AddAsync(product);
     }
 
-    public async Task UpdateAsync(Product product)
+    public async Task CreateGlobalProductAsync(GlobalProduct product)
     {
-        await UpsertGlobalProductAsync(product);
-    }
-
-    private async Task UpsertGlobalProductAsync(Product product)
-    {
-        var existing = await GetGlobalTrackedAsync(product.ProductCode);
-
-        if (existing == null)
-        {
-            _context.GlobalProducts.Add(
-                new GlobalProduct
-                {
-                    ProductCode = product.ProductCode,
-                    Description = product.Description,
-                    Description2 = product.Description2,
-                    ProductGroup = product.ProductGroup,
-                    AlternateSearch = product.AlternateSearch,
-                    StockCategory = product.StockCategory,
-                    ProductTypeCode = product.ProductTypeCode,
-                    UOM1 = product.UOM1,
-                    UOM2 = product.UOM2,
-                    ConversionFactor = product.ConversionFactor,
-                    Status = product.Status,
-                    CreatedOn = DateTime.UtcNow,
-                    UpdatedOn = DateTime.UtcNow,
-                    CreatedBy = "SAP_SYNC",
-                    UpdatedBy = "SAP_SYNC",
-                }
-            );
-        }
-        else
-        {
-            existing.Description = product.Description;
-            existing.Description2 = product.Description2;
-            existing.ProductGroup = product.ProductGroup;
-            existing.AlternateSearch = product.AlternateSearch;
-            existing.StockCategory = product.StockCategory;
-            existing.ProductTypeCode = product.ProductTypeCode;
-            existing.UOM1 = product.UOM1;
-            existing.UOM2 = product.UOM2;
-            existing.ConversionFactor = product.ConversionFactor;
-            existing.Status = product.Status;
-            existing.UpdatedOn = DateTime.UtcNow;
-            existing.UpdatedBy = "SAP_SYNC";
-        }
+        await _context.GlobalProducts.AddAsync(product);
     }
 
     public async ValueTask DisposeAsync()
