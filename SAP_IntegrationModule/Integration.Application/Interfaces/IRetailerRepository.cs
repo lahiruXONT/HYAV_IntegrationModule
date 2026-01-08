@@ -13,8 +13,9 @@ public interface IRetailerRepository
     Task CommitTransactionAsync();
     Task RollbackTransactionAsync();
     Task<Retailer?> GetByRetailerCodeAsync(string retailerCode, string businessUnit);
-    Task CreateAsync(Retailer retailer);
-    Task UpdateAsync(Retailer retailer);
+    Task<GlobalRetailer?> GetGlobalRetailerAsync(string code);
+    Task CreateRetailerAsync(Retailer retailer);
+    Task CreateGlobalRetailerAsync(GlobalRetailer retailer);
     Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode);
     Task<bool> PostalCodeTerritoryExistsAsync(string postalCode);
 }

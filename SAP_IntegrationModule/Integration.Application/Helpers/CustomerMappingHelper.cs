@@ -227,6 +227,126 @@ public sealed class CustomerMappingHelper
         existing.UpdatedBy = "SAP_SYNC";
     }
 
+    public async Task<GlobalRetailer> MapSapToXontGlobalCustomerAsync(
+        SapCustomerResponseDto sapCustomer
+    )
+    {
+        await ValidateSapCustomerAsync(sapCustomer);
+
+        try
+        {
+            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
+                sapCustomer.SalesOrganization ?? "",
+                sapCustomer.Division ?? ""
+            );
+
+            var territory = await _customerRepository.GetTerritoryCodeAsync(
+                sapCustomer.PostalCode ?? ""
+            );
+            if (territory == null || string.IsNullOrWhiteSpace(territory.TerritoryCode))
+            {
+                var errorMessage =
+                    $"No territory found for postal code: '{sapCustomer.PostalCode}'";
+                _logger.LogError(errorMessage);
+                throw new InvalidOperationException(errorMessage);
+            }
+
+            return new GlobalRetailer
+            {
+                RetailerCode = sapCustomer.Customer.Trim(),
+                RetailerName = sapCustomer.CustomerName.Trim(),
+                AddressLine1 = sapCustomer.HouseNo.Trim(),
+                AddressLine2 = sapCustomer.Street.Trim(),
+                AddressLine3 = sapCustomer.Street2.Trim(),
+                AddressLine4 = sapCustomer.Street3.Trim(),
+                AddressLine5 = sapCustomer.City.Trim(),
+                TelephoneNumber = sapCustomer.Telephone.Trim(),
+                FaxNumber = sapCustomer.Fax.Trim(),
+                EmailAddress = sapCustomer.Email.Trim(),
+                TerritoryCode = territory?.TerritoryCode ?? "",
+                //Division =  sapCustomer.Division?.Trim(),
+                //SalesOrganization = sapCustomer.SalesOrganization?.Trim(),
+                //DistributionChannel = sapCustomer?.Distributionchannel ,
+
+                // Default values
+                //Province
+                //District = sapCustomer.RegionCode?.Trim(),
+                //Town = sapCustomer.PostalCode?.Trim(),
+
+                TelephoneNumberSys = string.Empty,
+
+                PostCode = "0000",
+                CurrencyCode = "LKR",
+                CurrencyProcessingRequired = "1",
+
+                // Audit fields
+                CreatedOn = DateTime.Now,
+                UpdatedOn = ParseSapDate(sapCustomer.TodaysDate),
+                CreatedBy = "SAP_SYNC",
+                UpdatedBy = "SAP_SYNC",
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to map SAP customer {Code}. SalesOrg: {SalesOrg}, Division: {Division}",
+                sapCustomer.Customer,
+                sapCustomer.SalesOrganization,
+                sapCustomer.Division
+            );
+            throw;
+        }
+    }
+
+    public bool HasGlobalRetailerChanges(GlobalRetailer existing, GlobalRetailer updated)
+    {
+        if (existing == null)
+            throw new ArgumentNullException(nameof(existing));
+        if (updated == null)
+            throw new ArgumentNullException(nameof(updated));
+
+        return existing.RetailerName != updated.RetailerName
+            || existing.AddressLine1 != updated.AddressLine1
+            || existing.AddressLine2 != updated.AddressLine2
+            || existing.AddressLine3 != updated.AddressLine3
+            || existing.AddressLine4 != updated.AddressLine4
+            || existing.AddressLine5 != updated.AddressLine5
+            || existing.TelephoneNumber != updated.TelephoneNumber
+            || existing.FaxNumber != updated.FaxNumber
+            || existing.EmailAddress != updated.EmailAddress
+            || existing.TerritoryCode != updated.TerritoryCode
+        //|| existing.SalesOrganization != updated.SalesOrganization ||
+        //existing.Division != updated.Division
+        //|| existing.District != updated.District
+        ;
+    }
+
+    public void UpdateGlobalCustomer(GlobalRetailer existing, GlobalRetailer updated)
+    {
+        if (existing == null)
+            throw new ArgumentNullException(nameof(existing));
+        if (updated == null)
+            throw new ArgumentNullException(nameof(updated));
+
+        existing.TerritoryCode = updated.TerritoryCode;
+        existing.RetailerName = updated.RetailerName;
+        existing.AddressLine1 = updated.AddressLine1;
+        existing.AddressLine2 = updated.AddressLine2;
+        existing.AddressLine3 = updated.AddressLine3;
+        existing.AddressLine4 = updated.AddressLine4;
+        existing.AddressLine5 = updated.AddressLine5;
+        existing.TelephoneNumber = updated.TelephoneNumber;
+        existing.FaxNumber = updated.FaxNumber;
+        existing.EmailAddress = updated.EmailAddress;
+        //existing.SalesOrganization = updated.SalesOrganization;
+        //existing.Division = updated.Division;
+        //existing.District = updated.District;
+
+        existing.UpdatedOn = DateTime.Now;
+        existing.UpdatedBy = "SAP_SYNC";
+    }
+
     private DateTime ParseSapDate(string sapDate)
     {
         if (string.IsNullOrEmpty(sapDate))

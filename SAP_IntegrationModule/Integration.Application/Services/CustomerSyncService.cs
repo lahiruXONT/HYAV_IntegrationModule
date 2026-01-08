@@ -71,7 +71,8 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     + $"Total: {result.TotalRecords}, "
                     + $"New: {result.NewCustomers}, "
                     + $"Updated: {result.UpdatedCustomers}, "
-                    + $"Skipped: {result.SkippedCustomers}, ";
+                    + $"Skipped: {result.SkippedCustomers}, "
+                    + $"Failed: {result.FailedRecords}, ";
             }
             catch (Exception ex)
             {
@@ -108,7 +109,24 @@ public sealed class CustomerSyncService : ICustomerSyncService
         if (!sapCustomers.Any())
             return;
 
-        var customerCode = sapCustomers[0].Customer;
+        var globalCustomerObj = await _mappingHelper.MapSapToXontGlobalCustomerAsync(
+            sapCustomers[0]
+        );
+
+        var globalCustomerExisting = await _customerRepository.GetGlobalRetailerAsync(
+            globalCustomerObj.RetailerCode
+        );
+        if (globalCustomerExisting == null)
+        {
+            await _customerRepository.CreateGlobalRetailerAsync(globalCustomerObj);
+        }
+        else
+        {
+            if (_mappingHelper.HasGlobalRetailerChanges(globalCustomerExisting, globalCustomerObj))
+            {
+                _mappingHelper.UpdateGlobalCustomer(globalCustomerExisting, globalCustomerObj);
+            }
+        }
 
         foreach (var sapCustomer in sapCustomers)
         {
@@ -123,7 +141,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
 
                 if (existing == null)
                 {
-                    await _customerRepository.CreateAsync(xontRetailer);
+                    await _customerRepository.CreateRetailerAsync(xontRetailer);
                     result.NewCustomers++;
                 }
                 else
@@ -131,7 +149,6 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     if (_mappingHelper.HasRetailerChanges(existing, xontRetailer))
                     {
                         _mappingHelper.UpdateCustomer(existing, xontRetailer);
-                        await _customerRepository.UpdateAsync(existing);
                         result.UpdatedCustomers++;
                     }
                     else
@@ -148,6 +165,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     sapCustomer.Customer
                 );
 
+                result.FailedRecords++;
                 throw new CustomerSyncException(
                     $"Failed to process customer {sapCustomer.Customer}: {ex.Message}",
                     sapCustomer.Customer,
