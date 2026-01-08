@@ -64,12 +64,8 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 .ToList();
 
             var invalidCount = sapMaterials.Count - validMaterials.Count;
-            
 
-            var materialGroups = validMaterials
-                .GroupBy(m => new { m.Material })
-                .ToList();
-
+            var materialGroups = validMaterials.GroupBy(m => new { m.Material }).ToList();
 
             await _productRepository.BeginTransactionAsync();
 
@@ -77,10 +73,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
             {
                 foreach (var group in materialGroups)
                 {
-                    await ProcessMaterialGroupAsync(
-                        group.Key.Material,
-                        group.ToList(),
-                        result);
+                    await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
                 }
 
                 await _productRepository.CommitTransactionAsync();
@@ -132,7 +125,6 @@ public sealed class MaterialSyncService : IMaterialSyncService
             try
             {
                 var xontProduct = await _mappingHelper.MapSapToXontMaterialAsync(sapMaterial);
-
 
                 var existing = await _productRepository.GetByProductCodeAsync(
                     xontProduct.ProductCode,

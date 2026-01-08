@@ -17,7 +17,6 @@ Log.Information("Starting up Worker Service...");
 
 try
 {
-
     // Configure Serilog *before* building the host
     var initialBuilder = Host.CreateApplicationBuilder(args);
     var configuration = initialBuilder.Configuration;
@@ -50,24 +49,27 @@ try
             }
         );
     });
-
-    // --- BU DbContext factory ---
-    builder.Services.AddScoped<Func<string, BuDbContext>>(provider => buCode =>
+    // --- User Database contexts ---
+    builder.Services.AddDbContext<UserDbContext>(options =>
     {
-        var buHelper = provider.GetRequiredService<BusinessUnitResolveHelper>();
-        var connectionString = buHelper.BuildConnectionString(buCode); 
-
-        var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
-        optionsBuilder.UseSqlServer(connectionString, sqlOptions =>
+        var connectionString = builder.Configuration.GetConnectionString("UserDB");
+        if (string.IsNullOrEmpty(connectionString))
         {
-            sqlOptions.CommandTimeout(300);
-            sqlOptions.EnableRetryOnFailure( 
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                new[] { 1205, 4060 }); //we need to add other eror codes if needed
-        });
+            throw new InvalidOperationException("UserDB connection string is not configured");
+        }
 
-        return new BuDbContext(optionsBuilder.Options, buCode);
+        options.UseSqlServer(
+            connectionString,
+            sqlOptions =>
+            {
+                sqlOptions.CommandTimeout(300);
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    new[] { 1205, 4060 }
+                ); //we need to add other eror codes if needed
+            }
+        );
     });
 
     // --- SAP HTTP Client ---
@@ -122,18 +124,19 @@ try
     builder.Services.AddScoped<IMaterialSyncService, MaterialSyncService>();
 
     // --- Add Workers ---
-    builder.Services.AddHostedService<ResilientBackgroundService>();
     builder.Services.AddHostedService<MaterialSyncBackgroundService>();
     builder.Services.AddHostedService<CustomerSyncBackgroundService>();
 
     // Register options
     builder.Services.Configure<BackgroundServiceOptions>(
-    nameof(CustomerSyncBackgroundService),
-    builder.Configuration.GetSection("BackgroundServices:CustomerSyncBackgroundService"));
+        nameof(CustomerSyncBackgroundService),
+        builder.Configuration.GetSection("BackgroundServices:CustomerSyncBackgroundService")
+    );
 
     builder.Services.Configure<BackgroundServiceOptions>(
         nameof(MaterialSyncBackgroundService),
-        builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService"));
+        builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService")
+    );
 
     var host = builder.Build();
 
@@ -143,7 +146,8 @@ try
 
     var configurationService = host.Services.GetRequiredService<IConfiguration>();
     var sapBaseUrl = configurationService["SapApi:BaseUrl"];
-    var globalConnString = configurationService.GetConnectionString("GlobalDatabase");
+    var UserDBConnString = configurationService.GetConnectionString("UserDB");
+    var SystemDBConnString = configurationService.GetConnectionString("SystemDB");
 
     if (string.IsNullOrWhiteSpace(sapBaseUrl))
     {
@@ -151,10 +155,16 @@ try
         throw new InvalidOperationException("SAP API BaseUrl is required");
     }
 
-    if (string.IsNullOrWhiteSpace(globalConnString))
+    if (string.IsNullOrWhiteSpace(UserDBConnString))
     {
-        logger.LogError("GlobalDatabase connection string is not configured!");
-        throw new InvalidOperationException("GlobalDatabase connection string is required");
+        logger.LogError("UserDB connection string is not configured!");
+        throw new InvalidOperationException("UserDB connection string is required");
+    }
+
+    if (string.IsNullOrWhiteSpace(SystemDBConnString))
+    {
+        logger.LogError("SystemDB connection string is not configured!");
+        throw new InvalidOperationException("SystemDB connection string is required");
     }
 
     logger.LogInformation("Worker service registered and ready to start");

@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.Text.Json;
+using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
 using Serilog.Context;
-using System.Text.Json;
 
 namespace Integration.Worker;
 
@@ -20,19 +20,29 @@ public abstract class ResilientBackgroundService : BackgroundService
     protected ResilientBackgroundService(
         ILogger logger,
         IOptionsMonitor<BackgroundServiceOptions> optionsMonitor,
-        string serviceName)
+        string serviceName
+    )
     {
         _logger = logger;
         _optionsMonitor = optionsMonitor;
         _serviceName = serviceName;
 
-        _retryPolicy = Policy.Handle<Exception>(IsTransientException).WaitAndRetryAsync(
+        _retryPolicy = Policy
+            .Handle<Exception>(IsTransientException)
+            .WaitAndRetryAsync(
                 retryCount: 3,
                 attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
                 (ex, delay, retry, _) =>
                 {
-                    _logger.LogWarning( ex, "{ServiceName} transient retry {Retry} after {Delay}s",_serviceName, retry, delay.TotalSeconds);
-                });
+                    _logger.LogWarning(
+                        ex,
+                        "{ServiceName} transient retry {Retry} after {Delay}s",
+                        _serviceName,
+                        retry,
+                        delay.TotalSeconds
+                    );
+                }
+            );
 
         _optionsMonitor.OnChange(OnConfigurationChanged);
     }
@@ -48,7 +58,11 @@ public abstract class ResilientBackgroundService : BackgroundService
 
             if (options.InitialDelay > TimeSpan.Zero)
             {
-                _logger.LogInformation("{ServiceName} initial delay {Delay}", _serviceName, options.InitialDelay);
+                _logger.LogInformation(
+                    "{ServiceName} initial delay {Delay}",
+                    _serviceName,
+                    options.InitialDelay
+                );
 
                 await Task.Delay(options.InitialDelay, stoppingToken);
             }
@@ -75,7 +89,11 @@ public abstract class ResilientBackgroundService : BackgroundService
 
                     var delay = CalculateNextRunDelay(options);
 
-                    _logger.LogInformation("{ServiceName} completed successfully. Next run in {Delay}", _serviceName, delay);
+                    _logger.LogInformation(
+                        "{ServiceName} completed successfully. Next run in {Delay}",
+                        _serviceName,
+                        delay
+                    );
 
                     await Task.Delay(delay, stoppingToken);
                 }
@@ -105,7 +123,7 @@ public abstract class ResilientBackgroundService : BackgroundService
         {
             _logger.LogInformation("{ServiceName} execution started", _serviceName);
 
-            await _retryPolicy.ExecuteAsync(ct => ExecuteCycleAsync(ct),token);
+            await _retryPolicy.ExecuteAsync(ct => ExecuteCycleAsync(ct), token);
 
             _logger.LogInformation("{ServiceName} execution finished", _serviceName);
         }
@@ -116,9 +134,16 @@ public abstract class ResilientBackgroundService : BackgroundService
     private async Task HandleFailureAsync(
         Exception ex,
         BackgroundServiceOptions options,
-        CancellationToken token)
+        CancellationToken token
+    )
     {
-        _logger.LogError( ex,"{ServiceName} failed ({Failures}/{MaxFailures})", _serviceName, _consecutiveFailures, options.MaxConsecutiveFailures);
+        _logger.LogError(
+            ex,
+            "{ServiceName} failed ({Failures}/{MaxFailures})",
+            _serviceName,
+            _consecutiveFailures,
+            options.MaxConsecutiveFailures
+        );
 
         LogDetailedError(ex);
 
@@ -126,7 +151,11 @@ public abstract class ResilientBackgroundService : BackgroundService
         {
             _state = BackgroundServiceState.Failed;
 
-            _logger.LogCritical("{ServiceName} marked FAILED after {Failures} consecutive errors", _serviceName, _consecutiveFailures);
+            _logger.LogCritical(
+                "{ServiceName} marked FAILED after {Failures} consecutive errors",
+                _serviceName,
+                _consecutiveFailures
+            );
 
             return;
         }
@@ -179,7 +208,7 @@ public abstract class ResilientBackgroundService : BackgroundService
             Failures = _consecutiveFailures,
             LastSuccess = _lastSuccessfulRun,
             Error = ex.Message,
-            StackTrace = ex.StackTrace
+            StackTrace = ex.StackTrace,
         };
 
         _logger.LogError("{ServiceName} error details {@Details}", _serviceName, details);
@@ -194,14 +223,13 @@ public abstract class ResilientBackgroundService : BackgroundService
                 _serviceName,
                 options.IsEnabled,
                 options.Interval,
-                options.DailyScheduleTime);
+                options.DailyScheduleTime
+            );
         }
     }
 
-    private static bool IsTransientException(Exception ex)
-        => ex is HttpRequestException
-        || ex is TimeoutException
-        || ex is TaskCanceledException;
+    private static bool IsTransientException(Exception ex) =>
+        ex is HttpRequestException || ex is TimeoutException || ex is TaskCanceledException;
 }
 
 public enum BackgroundServiceState
@@ -210,7 +238,7 @@ public enum BackgroundServiceState
     Running,
     Paused,
     Stopped,
-    Failed
+    Failed,
 }
 
 public class BackgroundServiceOptions

@@ -11,7 +11,8 @@ public class MaterialSyncBackgroundService : ResilientBackgroundService
     public MaterialSyncBackgroundService(
         IServiceProvider serviceProvider,
         ILogger<MaterialSyncBackgroundService> logger,
-        IOptionsMonitor<BackgroundServiceOptions> optionsMonitor)
+        IOptionsMonitor<BackgroundServiceOptions> optionsMonitor
+    )
         : base(logger, optionsMonitor, nameof(MaterialSyncBackgroundService))
     {
         _serviceProvider = serviceProvider;
@@ -24,28 +25,24 @@ public class MaterialSyncBackgroundService : ResilientBackgroundService
 
         var request = new XontMaterialSyncRequestDto
         {
-            Date = DateTime.UtcNow.AddDays(-1).ToString("yyyyMMdd")
+            Date = DateTime.UtcNow.AddDays(-1).ToString("yyyyMMdd"),
         };
 
         var result = await syncService.SyncMaterialsFromSapAsync(request);
 
         if (result.Success)
         {
-            _logger.LogInformation(
-                "Material sync completed {@Result}",
-                result);
+            _logger.LogInformation("Material sync completed {@Result}", result);
         }
         else
         {
-            _logger.LogWarning(
-                "Material sync completed with issues {@Result}",
-                result);
+            _logger.LogWarning("Material sync completed with issues {@Result}", result);
 
-            if (result.TotalRecords > 0 &&
-                result.NewMaterials + result.UpdatedMaterials == 0)
+            if (result.TotalRecords > 0 && result.NewMaterials + result.UpdatedMaterials == 0)
             {
                 throw new InvalidOperationException(
-                    $"Material sync processed zero records. {result.Message}");
+                    $"Material sync processed zero records. {result.Message}"
+                );
             }
         }
     }

@@ -52,7 +52,6 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 return result;
             }
 
-
             var groups = sapCustomers.GroupBy(c => c.Customer).ToList();
 
             await _customerRepository.BeginTransactionAsync();
@@ -143,9 +142,17 @@ public sealed class CustomerSyncService : ICustomerSyncService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing customer {Code} in sync ", sapCustomer.Customer);
+                _logger.LogError(
+                    ex,
+                    "Error processing customer {Code} in sync ",
+                    sapCustomer.Customer
+                );
 
-                throw new CustomerSyncException( $"Failed to process customer {sapCustomer.Customer}: {ex.Message}", sapCustomer.Customer, ex);
+                throw new CustomerSyncException(
+                    $"Failed to process customer {sapCustomer.Customer}: {ex.Message}",
+                    sapCustomer.Customer,
+                    ex
+                );
             }
         }
     }

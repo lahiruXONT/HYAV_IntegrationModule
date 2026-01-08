@@ -10,81 +10,46 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Integration.Infrastructure.Repositories;
-   
 
-    public class AuthRepository : IAuthRepository
+public class AuthRepository : IAuthRepository
+{
+    private readonly UserDbContext _context;
+    private readonly ILogger<AuthRepository> _logger;
+
+    public AuthRepository(UserDbContext context, ILogger<AuthRepository> logger)
     {
-        private readonly UserDbContext _context;
-        private readonly ILogger<AuthRepository> _logger;
+        _context = context;
+        _logger = logger;
+    }
 
-        public AuthRepository(
-            GlobalDbContext context,
-            ILogger<AuthRepository> logger)
-        {
-            _context = context;
-            _logger = logger;
-        }
-
-    public async Task<User?> GetUserAsync(string businessUnit, string username)
-    {
-        try
-        {
-            return await _context
-                .Users.AsNoTracking()
-                .FirstOrDefaultAsync(u =>
-                    u.BusinessUnit == businessUnit && u.UserName == username && u.Status == "1"
-                );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to get user {Username} in BU {BusinessUnit}",
-                username,
-                businessUnit
+    public Task<User?> GetUserAsync(string businessUnit, string username) =>
+        _context
+            .Users.AsNoTracking()
+            .FirstOrDefaultAsync(u =>
+                u.BusinessUnit == businessUnit && u.UserName == username && u.Status == "1"
             );
-            throw;
-        }
-    }
 
-    public async Task<User?> GetUserByRefreshTokenAsync(string refreshToken)
-    {
-        try
-        {
-            return await _context
-                .Users.Include(u => u.Sessions)
-                .FirstOrDefaultAsync(u =>
-                    u.Sessions != null
-                    && u.Sessions.Any(s =>
-                        s.RefreshToken == refreshToken
-                        && s.Status == "1"
-                        && s.ExpiresAt > DateTime.Now
-                    )
-                );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get user by refresh token");
-            throw;
-        }
-    }
-
-    public async Task<UserSession?> GetUserSessionAsync(string refreshToken)
-    {
-        try
-        {
-            return await _context
-                .UserSessions.Include(s => s.User)
-                .FirstOrDefaultAsync(s =>
+    public Task<User?> GetUserByRefreshTokenAsync(string refreshToken) =>
+        _context
+            .Users.Include(u => u.Sessions)
+            .FirstOrDefaultAsync(u =>
+                u.Sessions != null
+                && u.Sessions.Any(s =>
                     s.RefreshToken == refreshToken && s.Status == "1" && s.ExpiresAt > DateTime.Now
-                );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get user session");
-            throw;
-        }
-    }
+                )
+            );
+
+    public Task<UserSession?> GetUserSessionAsync(string refreshToken) =>
+        _context
+            .UserSessions.Include(s => s.User)
+            .FirstOrDefaultAsync(s =>
+                s.RefreshToken == refreshToken && s.Status == "1" && s.ExpiresAt > DateTime.Now
+            );
+
+    public Task<int> GetActiveSessionsCountAsync(long userId) =>
+        _context.UserSessions.CountAsync(s =>
+            s.UserID == userId && s.Status == "1" && s.ExpiresAt > DateTime.Now
+        );
 
     public async Task UpdateUserAsync(User user)
     {
@@ -170,21 +135,6 @@ namespace Integration.Infrastructure.Repositories;
         {
             _logger.LogError(ex, "Failed to create user {Username}", user.UserName);
             throw;
-        }
-    }
-
-    public async Task<int> GetActiveSessionsCountAsync(long userId)
-    {
-        try
-        {
-            return await _context.UserSessions.CountAsync(s =>
-                s.UserID == userId && s.Status == "1" && s.ExpiresAt > DateTime.Now
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get active sessions count for user {UserId}", userId);
-            return 0;
         }
     }
 }

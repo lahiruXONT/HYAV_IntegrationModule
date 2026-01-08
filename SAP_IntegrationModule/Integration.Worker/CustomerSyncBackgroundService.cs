@@ -11,7 +11,8 @@ public class CustomerSyncBackgroundService : ResilientBackgroundService
     public CustomerSyncBackgroundService(
         IServiceProvider serviceProvider,
         ILogger<CustomerSyncBackgroundService> logger,
-        IOptionsMonitor<BackgroundServiceOptions> optionsMonitor)
+        IOptionsMonitor<BackgroundServiceOptions> optionsMonitor
+    )
         : base(logger, optionsMonitor, nameof(CustomerSyncBackgroundService))
     {
         _serviceProvider = serviceProvider;
@@ -24,28 +25,24 @@ public class CustomerSyncBackgroundService : ResilientBackgroundService
 
         var request = new XontCustomerSyncRequestDto
         {
-            Date = DateTime.UtcNow.AddDays(-1).ToString("yyyyMMdd")
+            Date = DateTime.UtcNow.AddDays(-1).ToString("yyyyMMdd"),
         };
 
         var result = await syncService.SyncCustomersFromSapAsync(request);
 
         if (result.Success)
         {
-            _logger.LogInformation(
-                "Customer sync completed {@Result}",
-                result);
+            _logger.LogInformation("Customer sync completed {@Result}", result);
         }
         else
         {
-            _logger.LogWarning(
-                "Customer sync completed with issues {@Result}",
-                result);
+            _logger.LogWarning("Customer sync completed with issues {@Result}", result);
 
-            if (result.TotalRecords > 0 &&
-                result.NewCustomers + result.UpdatedCustomers == 0)
+            if (result.TotalRecords > 0 && result.NewCustomers + result.UpdatedCustomers == 0)
             {
                 throw new InvalidOperationException(
-                    $"Customer sync processed zero records. {result.Message}");
+                    $"Customer sync processed zero records. {result.Message}"
+                );
             }
         }
     }

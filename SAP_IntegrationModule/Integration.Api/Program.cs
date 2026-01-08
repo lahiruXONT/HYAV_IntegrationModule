@@ -60,14 +60,15 @@ builder.Services.AddSwaggerGen(c =>
     );
 });
 
-
 // --- System Database contexts ---
 builder.Services.AddDbContext<SystemDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SystemDB")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("SystemDB"))
+);
+
 // --- User Database contexts ---
 builder.Services.AddDbContext<UserDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("UserDB")));
-
+    options.UseSqlServer(builder.Configuration.GetConnectionString("UserDB"))
+);
 
 // --- JWT Authentication ---
 var jwtKey = builder.Configuration["Jwt:Key"];

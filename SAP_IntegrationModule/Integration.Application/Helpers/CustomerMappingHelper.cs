@@ -1,10 +1,10 @@
-﻿using System.Globalization;
+﻿using System.ComponentModel.Design;
+using System.Globalization;
+using System.Globalization;
 using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
 using Microsoft.Extensions.Logging;
-using System.ComponentModel.Design;
-using System.Globalization;
 
 namespace Integration.Application.Helpers;
 
@@ -33,7 +33,10 @@ public sealed class CustomerMappingHelper
 
         try
         {
-            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(sapCustomer.SalesOrganization ?? "", sapCustomer.Division ?? "");
+            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
+                sapCustomer.SalesOrganization ?? "",
+                sapCustomer.Division ?? ""
+            );
 
             var territory = await _customerRepository.GetTerritoryCodeAsync(
                 sapCustomer.PostalCode ?? ""
@@ -136,13 +139,22 @@ public sealed class CustomerMappingHelper
         if (string.IsNullOrWhiteSpace(sapCustomer.SalesOrganization))
         {
             errors.Add("Sales organization is required");
+        }
 
-
-        if (!string.IsNullOrWhiteSpace(sapCustomer.Division) && !await _businessUnitResolver.DivisionExistsAsync(sapCustomer.Division))
+        if (
+            !string.IsNullOrWhiteSpace(sapCustomer.Division)
+            && !await _businessUnitResolver.SalesOrgDivisionExistsAsync(
+                sapCustomer.SalesOrganization,
+                sapCustomer.Division
+            )
+        )
         {
             errors.Add($"Division '{sapCustomer.Division}' not found ");
         }
-        if (!string.IsNullOrWhiteSpace(sapCustomer.PostalCode) && !await _customerRepository.PostalCodeTerritoryExistsAsync(sapCustomer.PostalCode))
+        if (
+            !string.IsNullOrWhiteSpace(sapCustomer.PostalCode)
+            && !await _customerRepository.PostalCodeTerritoryExistsAsync(sapCustomer.PostalCode)
+        )
         {
             errors.Add($"Territory for '{sapCustomer.PostalCode}' not found");
         }
