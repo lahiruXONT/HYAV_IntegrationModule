@@ -11,7 +11,8 @@ public sealed class SalesSyncBackgroundService : ResilientBackgroundService
     public SalesSyncBackgroundService(
         IServiceProvider serviceProvider,
         ILogger<SalesSyncBackgroundService> logger,
-        IOptionsMonitor<BackgroundServiceOptions> optionsMonitor)
+        IOptionsMonitor<BackgroundServiceOptions> optionsMonitor
+    )
         : base(logger, optionsMonitor, nameof(SalesSyncBackgroundService))
     {
         _serviceProvider = serviceProvider;
@@ -31,21 +32,17 @@ public sealed class SalesSyncBackgroundService : ResilientBackgroundService
 
         if (result.Success)
         {
-            _logger.LogInformation(
-                "Sales Order sync completed {@Result}",
-                result);
+            _logger.LogInformation("Sales Order sync completed {@Result}", result);
         }
         else
         {
-            _logger.LogWarning(
-                "Sales Order completed with issues {@Result}",
-                result);
+            _logger.LogWarning("Sales Order completed with issues {@Result}", result);
 
-            if (result.TotalRecords > 0 &&
-                result.NewCustomers + result.UpdatedCustomers == 0)
+            if (result.TotalRecords > 0 && result.NewCustomers + result.UpdatedCustomers == 0)
             {
                 throw new InvalidOperationException(
-                    $"Sales Order processed zero records. {result.Message}");
+                    $"Sales Order processed zero records. {result.Message}"
+                );
             }
         }
     }

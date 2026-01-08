@@ -67,4 +67,3 @@ public sealed class SalesInvoiceResponseDto
 
     public decimal TotalInvoiceValue { get; set; }
 }
-

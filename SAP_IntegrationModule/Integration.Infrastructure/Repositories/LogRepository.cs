@@ -15,9 +15,7 @@ public class LogRepository : ILogRepository
     private readonly UserDbContext _context;
     private readonly ILogger<LogRepository> _logger;
 
-    public LogRepository(
-        UserDbContext context,
-        ILogger<LogRepository> logger)
+    public LogRepository(UserDbContext context, ILogger<LogRepository> logger)
     {
         _context = context;
         _logger = logger;

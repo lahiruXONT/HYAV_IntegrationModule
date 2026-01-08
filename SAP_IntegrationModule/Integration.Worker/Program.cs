@@ -17,7 +17,6 @@ Log.Information("Starting up Worker Service...");
 
 try
 {
-
     // Configure Serilog *before* building the host
     var initialBuilder = Host.CreateApplicationBuilder(args);
     var configuration = initialBuilder.Configuration;
@@ -50,24 +49,27 @@ try
             }
         );
     });
-
-    // --- BU DbContext factory ---
-    builder.Services.AddScoped<Func<string, BuDbContext>>(provider => buCode =>
+    // --- User Database contexts ---
+    builder.Services.AddDbContext<UserDbContext>(options =>
     {
-        var buHelper = provider.GetRequiredService<BusinessUnitResolveHelper>();
-        var connectionString = buHelper.BuildConnectionString(buCode); 
-
-        var optionsBuilder = new DbContextOptionsBuilder<BuDbContext>();
-        optionsBuilder.UseSqlServer(connectionString, sqlOptions =>
+        var connectionString = builder.Configuration.GetConnectionString("UserDB");
+        if (string.IsNullOrEmpty(connectionString))
         {
-            sqlOptions.CommandTimeout(300);
-            sqlOptions.EnableRetryOnFailure( 
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                new[] { 1205, 4060 }); //we need to add other eror codes if needed
-        });
+            throw new InvalidOperationException("UserDB connection string is not configured");
+        }
 
-        return new BuDbContext(optionsBuilder.Options, buCode);
+        options.UseSqlServer(
+            connectionString,
+            sqlOptions =>
+            {
+                sqlOptions.CommandTimeout(300);
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    new[] { 1205, 4060 }
+                ); //we need to add other eror codes if needed
+            }
+        );
     });
 
     // --- SAP HTTP Client ---
@@ -128,12 +130,14 @@ try
 
     // Register options
     builder.Services.Configure<BackgroundServiceOptions>(
-    nameof(CustomerSyncBackgroundService),
-    builder.Configuration.GetSection("BackgroundServices:CustomerSyncBackgroundService"));
+        nameof(CustomerSyncBackgroundService),
+        builder.Configuration.GetSection("BackgroundServices:CustomerSyncBackgroundService")
+    );
 
     builder.Services.Configure<BackgroundServiceOptions>(
         nameof(MaterialSyncBackgroundService),
-        builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService"));
+        builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService")
+    );
 
     var host = builder.Build();
 
