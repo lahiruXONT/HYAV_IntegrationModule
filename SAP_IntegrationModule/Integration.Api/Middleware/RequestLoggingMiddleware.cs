@@ -30,55 +30,67 @@ public sealed class RequestLoggingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var endpoint = context.GetEndpoint();
-        var controllerName = endpoint
-            ?.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>()
-            ?.ControllerName;
+        var correlationId = GetOrCreateCorrelationId(context);
 
-        if (string.Equals(controllerName, "Auth", StringComparison.OrdinalIgnoreCase))
+        context.Response.Headers["X-Correlation-ID"] = correlationId;
+
+        using (_logger.BeginScope(new Dictionary<string, object>
         {
-            await _next(context);
-            return;
-        }
-
-        var stopwatch = Stopwatch.StartNew();
-        long requestLogId = 0;
-
-        var originalBody = context.Response.Body;
-        await using var responseBody = new MemoryStream();
-        context.Response.Body = responseBody;
-
-        try
+            ["CorrelationId"] = correlationId,
+            ["RequestPath"] = context.Request.Path,
+            ["RequestMethod"] = context.Request.Method
+        }))
         {
-            requestLogId = await LogRequest(context);
+            var endpoint = context.GetEndpoint();
+            var controllerName = endpoint
+                ?.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>()
+                ?.ControllerName;
 
-            await _next(context);
-
-            stopwatch.Stop();
-            if (context.Response.StatusCode >= 400)
+            if (string.Equals(controllerName, "Auth", StringComparison.OrdinalIgnoreCase))
             {
-                var responseText = await ReadResponseBody(context.Response);
-                await LogErrorToDatabase(context, requestLogId, responseText);
+                await _next(context);
+                return;
             }
 
-            _logger.LogInformation(
-                "Request completed: {Method} {Path} with status {StatusCode} in {ElapsedMilliseconds}ms",
-                context.Request.Method,
-                context.Request.Path,
-                context.Response.StatusCode,
-                stopwatch.ElapsedMilliseconds
-            );
-        }
-        catch
-        {
-            stopwatch.Stop();
-            throw;
-        }
-        finally
-        {
-            responseBody.Seek(0, SeekOrigin.Begin);
-            await responseBody.CopyToAsync(originalBody);
-            context.Response.Body = originalBody;
+            var stopwatch = Stopwatch.StartNew();
+            long requestLogId = 0;
+
+            var originalBody = context.Response.Body;
+            await using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            try
+            {
+                requestLogId = await LogRequest(context);
+
+                await _next(context);
+
+                stopwatch.Stop();
+                if (context.Response.StatusCode >= 400)
+                {
+                    var responseText = await ReadResponseBody(context.Response);
+                    await LogErrorToDatabase(context, requestLogId, responseText);
+                }
+
+                _logger.LogInformation(
+                    "Request completed: {Method} {Path} with status {StatusCode} in {ElapsedMilliseconds}ms",
+                    context.Request.Method,
+                    context.Request.Path,
+                    context.Response.StatusCode,
+                    stopwatch.ElapsedMilliseconds
+                );
+            }
+            catch
+            {
+                stopwatch.Stop();
+                throw;
+            }
+            finally
+            {
+                responseBody.Seek(0, SeekOrigin.Begin);
+                await responseBody.CopyToAsync(originalBody);
+                context.Response.Body = originalBody;
+            }
         }
     }
 
@@ -189,5 +201,14 @@ public sealed class RequestLoggingMiddleware
         var body = await reader.ReadToEndAsync();
         response.Body.Seek(0, SeekOrigin.Begin);
         return string.IsNullOrWhiteSpace(body) ? "[Empty Response]" : body;
+    }
+    private string GetOrCreateCorrelationId(HttpContext context)
+    {
+        if (context.Request.Headers.TryGetValue("X-Correlation-ID", out var correlationId))
+        {
+            return correlationId!;
+        }
+
+        return Guid.NewGuid().ToString();
     }
 }

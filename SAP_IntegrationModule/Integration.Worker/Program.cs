@@ -137,6 +137,7 @@ try
         nameof(MaterialSyncBackgroundService),
         builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService")
     );
+    builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
     var host = builder.Build();
 

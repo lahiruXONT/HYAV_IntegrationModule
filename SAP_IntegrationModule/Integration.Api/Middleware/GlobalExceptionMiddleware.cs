@@ -1,12 +1,10 @@
 ﻿using System.Net;
-using System.Security.Claims;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Integration.Application.DTOs;
-using Integration.Application.Interfaces;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Integration.Api.Middleware;
 
@@ -14,14 +12,17 @@ public sealed class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionMiddleware> _logger;
+    private readonly IHostEnvironment _env;
 
     public GlobalExceptionMiddleware(
         RequestDelegate next,
-        ILogger<GlobalExceptionMiddleware> logger
+        ILogger<GlobalExceptionMiddleware> logger,
+        IHostEnvironment env
     )
     {
         _next = next;
         _logger = logger;
+        _env = env;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -39,47 +40,118 @@ public sealed class GlobalExceptionMiddleware
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
-        var response = context.Response;
 
         var errorResponse = new ErrorResponse
         {
             Success = false,
-            Message = GetUserFriendlyMessage(exception),
-            Timestamp = DateTime.Now,
+            Timestamp = DateTime.UtcNow,
+            Path = context.Request.Path,
+            Method = context.Request.Method
         };
 
-        response.StatusCode = exception switch
+        switch (exception)
         {
-            SapApiExceptionDto => (int)HttpStatusCode.BadGateway,
-            UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
-            ValidationExceptionDto => (int)HttpStatusCode.BadRequest,
-            _ => (int)HttpStatusCode.InternalServerError,
-        };
+            case SapApiExceptionDto sapEx:
+                context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
+                errorResponse.Message = "SAP system connection failed";
+                errorResponse.ErrorCode = "SAP_CONNECTION_ERROR";
+                break;
 
-        errorResponse.ErrorType = exception.GetType().Name;
+            case DbUpdateException dbEx:
+                context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Message = "Database update failed";
+                errorResponse.ErrorCode = "DATABASE_UPDATE_ERROR";
+
+                if (dbEx.InnerException is SqlException sqlEx)
+                {
+                    errorResponse.Details = HandleSqlException(sqlEx);
+                }
+                break;
+
+            case SqlException sqEx:
+                context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Message = "Database error occurred";
+                errorResponse.ErrorCode = "DATABASE_ERROR";
+                errorResponse.Details = HandleSqlException(sqEx);
+                break;
+
+            case UnauthorizedAccessException:
+                context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                errorResponse.Message = "Not authorized";
+                errorResponse.ErrorCode = "UNAUTHORIZED";
+                break;
+
+            case ValidationExceptionDto validationEx:
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                errorResponse.Message = validationEx.Message;
+                errorResponse.ErrorCode = "VALIDATION_ERROR";
+                break;
+
+            case CustomerSyncException custEx:
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                errorResponse.Message = $"Customer sync failed for {custEx.CustomerCode}";
+                errorResponse.ErrorCode = "CUSTOMER_SYNC_ERROR";
+                errorResponse.CustomerCode = custEx.CustomerCode;
+                break;
+
+            case MaterialSyncException matEx:
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                errorResponse.Message = $"Material sync failed for {matEx.MaterialCode}";
+                errorResponse.ErrorCode = "MATERIAL_SYNC_ERROR";
+                errorResponse.MaterialCode = matEx.MaterialCode;
+                break;
+
+            default:
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                errorResponse.Message = _env.IsDevelopment()
+                    ? exception.Message
+                    : "An unexpected error occurred";
+                errorResponse.ErrorCode = "INTERNAL_ERROR";
+                break;
+        }
+
+        var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+            ?? context.TraceIdentifier;
 
         _logger.LogError(
             exception,
-            "Error : {ErrorType}, Message: {Message}, Path: {Path}, StatusCode: {StatusCode}",
-            errorResponse.ErrorType,
+            "Error {ErrorCode}: {Message} | CorrelationId: {CorrelationId} | Path: {Path}",
+            errorResponse.ErrorCode,
             exception.Message,
-            context.Request.Path,
-            response.StatusCode
+            correlationId,
+            context.Request.Path
         );
 
-        var result = JsonSerializer.Serialize(errorResponse);
+        if (_env.IsDevelopment())
+        {
+            errorResponse.StackTrace = exception.StackTrace;
+            errorResponse.InnerException = exception.InnerException?.Message;
+        }
+
+        var result = JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = _env.IsDevelopment()
+        });
+
         await context.Response.WriteAsync(result);
     }
 
-    private string GetUserFriendlyMessage(Exception exception)
+    private List<string> HandleSqlException(SqlException ex)
     {
-        return exception switch
-        {
-            SapApiExceptionDto => "SAP system Connection failed.",
-            DbUpdateException => "Database update failed.",
-            UnauthorizedAccessException => "Not authorized.",
-            ValidationExceptionDto => exception.Message,
-            _ => "An unexpected error occurred.",
-        };
+        var details = new List<string>();
+
+        if (ex.Number == 2601 || ex.Number == 2627)
+            details.Add("Duplicate record found");
+        else if (ex.Number == 547)
+            details.Add("Foreign key constraint violation");
+        else if (ex.Number == 1205)
+            details.Add("Deadlock occurred");
+        else if (ex.Number == 4060)
+            details.Add("Cannot open database");
+        else
+            details.Add($"SQL Error {ex.Number}: {ex.Message}");
+
+        return details;
     }
 }

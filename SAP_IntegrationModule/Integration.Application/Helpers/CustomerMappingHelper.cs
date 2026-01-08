@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.Design;
-using System.Globalization;
-using System.Globalization;
+﻿using System.ComponentModel.DataAnnotations;
 using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
@@ -21,10 +19,8 @@ public sealed class CustomerMappingHelper
     )
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _businessUnitResolver =
-            businessUnitResolver ?? throw new ArgumentNullException(nameof(businessUnitResolver));
-        _customerRepository =
-            retailerRepository ?? throw new ArgumentNullException(nameof(retailerRepository));
+        _businessUnitResolver = businessUnitResolver ?? throw new ArgumentNullException(nameof(businessUnitResolver));
+        _customerRepository = retailerRepository ?? throw new ArgumentNullException(nameof(retailerRepository));
     }
 
     public async Task<Retailer> MapSapToXontCustomerAsync(SapCustomerResponseDto sapCustomer)
@@ -34,22 +30,22 @@ public sealed class CustomerMappingHelper
         try
         {
             var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
-                sapCustomer.SalesOrganization ?? "",
-                sapCustomer.Division ?? ""
+                sapCustomer.SalesOrganization ?? string.Empty,
+                sapCustomer.Division ?? string.Empty
             );
 
             var territory = await _customerRepository.GetTerritoryCodeAsync(
-                sapCustomer.PostalCode ?? ""
+                sapCustomer.PostalCode ?? string.Empty
             );
+
             if (territory == null || string.IsNullOrWhiteSpace(territory.TerritoryCode))
             {
-                var errorMessage =
-                    $"No territory found for postal code: '{sapCustomer.PostalCode}'";
-                _logger.LogError(errorMessage);
-                throw new InvalidOperationException(errorMessage);
+                var errorMessage = $"No territory found for postal code: '{sapCustomer.PostalCode}' for customer '{sapCustomer.Customer}'";
+                _logger.LogWarning(errorMessage);
+                
             }
 
-            return new Retailer
+            var retailer = new Retailer
             {
                 RetailerCode = sapCustomer.Customer.Trim(),
                 RetailerName = sapCustomer.CustomerName.Trim(),
@@ -65,7 +61,6 @@ public sealed class CustomerMappingHelper
                 CreditLimit = sapCustomer.CreditLimit,
 
                 VatRegistrationNo = sapCustomer.VATRegistrationNumber?.Trim() ?? "",
-
                 BusinessUnit = businessUnit,
                 TerritoryCode = territory?.TerritoryCode ?? "",
                 //Division =  sapCustomer.Division?.Trim(),
@@ -76,7 +71,6 @@ public sealed class CustomerMappingHelper
                 //Province
                 //District = sapCustomer.RegionCode?.Trim(),
                 //Town = sapCustomer.PostalCode?.Trim(),
-
                 TelephoneNumberSys = string.Empty,
                 ContactName = string.Empty,
                 PaymentMethodCode = "CA",
@@ -87,7 +81,6 @@ public sealed class CustomerMappingHelper
                 VatStatus = string.IsNullOrWhiteSpace(sapCustomer.VATRegistrationNumber)
                     ? string.Empty
                     : "1",
-
                 PostCode = "0000",
                 CurrencyCode = "LKR",
                 CurrencyProcessingRequired = "1",
@@ -109,6 +102,9 @@ public sealed class CustomerMappingHelper
                 CreatedBy = "SAP_SYNC",
                 UpdatedBy = "SAP_SYNC",
             };
+
+            ValidateRetailer(retailer);
+            return retailer;
         }
         catch (Exception ex)
         {
@@ -123,45 +119,61 @@ public sealed class CustomerMappingHelper
         }
     }
 
-    public async Task ValidateSapCustomerAsync(SapCustomerResponseDto sapCustomer)
+    private async Task ValidateSapCustomerAsync(SapCustomerResponseDto sapCustomer)
     {
         if (sapCustomer == null)
-            throw new ArgumentNullException(nameof(sapCustomer));
+            throw new ValidationExceptionDto("SAP customer data cannot be null");
 
         var errors = new List<string>();
 
         if (string.IsNullOrWhiteSpace(sapCustomer.Customer))
             errors.Add("Customer code is required");
 
+        if (sapCustomer.Customer?.Length > 15)
+            errors.Add($"Customer code exceeds 15 characters: {sapCustomer.Customer}");
+
         if (string.IsNullOrWhiteSpace(sapCustomer.CustomerName))
             errors.Add("Customer name is required");
 
-        if (string.IsNullOrWhiteSpace(sapCustomer.SalesOrganization))
-        {
-            errors.Add("Sales organization is required");
-        }
+        if (sapCustomer.CustomerName?.Length > 75)
+            errors.Add($"Customer name exceeds 75 characters: {sapCustomer.CustomerName}");
 
-        if (
-            !string.IsNullOrWhiteSpace(sapCustomer.Division)
-            && !await _businessUnitResolver.SalesOrgDivisionExistsAsync(
+        if (string.IsNullOrWhiteSpace(sapCustomer.SalesOrganization))
+            errors.Add("Sales organization is required");
+
+        if (string.IsNullOrWhiteSpace(sapCustomer.Division))
+            errors.Add("Division is required");
+
+        if (!string.IsNullOrWhiteSpace(sapCustomer.Division) &&
+            !string.IsNullOrWhiteSpace(sapCustomer.SalesOrganization))
+        {
+            var exists = await _businessUnitResolver.SalesOrgDivisionExistsAsync(
                 sapCustomer.SalesOrganization,
                 sapCustomer.Division
-            )
-        )
-        {
-            errors.Add($"Division '{sapCustomer.Division}' not found ");
+            );
+
+            if (!exists)
+            {
+                errors.Add($"Business unit not found for SalesOrg: '{sapCustomer.SalesOrganization}' Division: '{sapCustomer.Division}'");
+            }
         }
-        if (
-            !string.IsNullOrWhiteSpace(sapCustomer.PostalCode)
-            && !await _customerRepository.PostalCodeTerritoryExistsAsync(sapCustomer.PostalCode)
-        )
-        {
-            errors.Add($"Territory for '{sapCustomer.PostalCode}' not found");
-        }
+
         if (errors.Any())
         {
             var errorMessage = string.Join("; ", errors);
             throw new ValidationExceptionDto(errorMessage);
+        }
+    }
+
+    private void ValidateRetailer(Retailer retailer)
+    {
+        var validationResults = new List<ValidationResult>();
+        var validationContext = new ValidationContext(retailer);
+
+        if (!Validator.TryValidateObject(retailer, validationContext, validationResults, true))
+        {
+            var errors = validationResults.Select(r => r.ErrorMessage);
+            throw new ValidationExceptionDto($"Retailer validation failed: {string.Join("; ", errors)}");
         }
     }
 
@@ -226,7 +238,6 @@ public sealed class CustomerMappingHelper
         existing.UpdatedOn = DateTime.Now;
         existing.UpdatedBy = "SAP_SYNC";
     }
-
     public async Task<GlobalRetailer> MapSapToXontGlobalCustomerAsync(
         SapCustomerResponseDto sapCustomer
     )
@@ -346,45 +357,45 @@ public sealed class CustomerMappingHelper
         existing.UpdatedOn = DateTime.Now;
         existing.UpdatedBy = "SAP_SYNC";
     }
+    private string NormalizeString(string? input, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+
+        var trimmed = input.Trim();
+        return trimmed.Length > maxLength ? trimmed.Substring(0, maxLength) : trimmed;
+    }
 
     private DateTime ParseSapDate(string sapDate)
     {
         if (string.IsNullOrEmpty(sapDate))
-            return DateTime.Now;
+            return DateTime.UtcNow;
 
         try
         {
-            if (
-                DateTime.TryParseExact(
-                    sapDate,
-                    "yyyyMMdd",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
-                    out var result
-                )
-            )
+            if (DateTime.TryParseExact(sapDate, "yyyyMMdd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var result))
             {
                 return result;
             }
 
-            if (
-                DateTime.TryParseExact(
-                    sapDate,
-                    "yyyy-MM-dd",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
-                    out result
-                )
-            )
+            if (DateTime.TryParseExact(sapDate, "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out result))
             {
                 return result;
             }
-            return DateTime.Now;
+
+            _logger.LogWarning("Failed to parse SAP date: {Date}, using current date", sapDate);
+            return DateTime.UtcNow;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error parsing SAP date: {Date}, using current date", sapDate);
-            return DateTime.Now;
+            return DateTime.UtcNow;
         }
     }
+
+    // ... rest of the existing methods ...
 }

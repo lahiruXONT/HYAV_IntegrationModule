@@ -10,6 +10,13 @@ public sealed class ErrorResponse
 {
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
-    public string ErrorType { get; set; } = string.Empty;
-    public DateTime Timestamp { get; set; } = DateTime.Now;
+    public string ErrorCode { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; }
+    public string? Path { get; set; }
+    public string? Method { get; set; }
+    public List<string>? Details { get; set; }
+    public string? StackTrace { get; set; }
+    public string? InnerException { get; set; }
+    public string? CustomerCode { get; set; }
+    public string? MaterialCode { get; set; }
 }
