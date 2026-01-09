@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using Integration.Application.DTOs;
+using Integration.Application.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -46,7 +47,7 @@ public sealed class GlobalExceptionMiddleware
             Success = false,
             Timestamp = DateTime.UtcNow,
             Path = context.Request.Path,
-            Method = context.Request.Method
+            Method = context.Request.Method,
         };
 
         switch (exception)
@@ -54,13 +55,13 @@ public sealed class GlobalExceptionMiddleware
             case SapApiExceptionDto sapEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
                 errorResponse.Message = "SAP system connection failed";
-                errorResponse.ErrorCode = "SAP_CONNECTION_ERROR";
+                errorResponse.ErrorCode = ErrorCodes.SapError;
                 break;
 
             case DbUpdateException dbEx:
                 context.Response.StatusCode = (int)HttpStatusCode.Conflict;
                 errorResponse.Message = "Database update failed";
-                errorResponse.ErrorCode = "DATABASE_UPDATE_ERROR";
+                errorResponse.ErrorCode = ErrorCodes.DatabaseUpdate;
 
                 if (dbEx.InnerException is SqlException sqlEx)
                 {
@@ -71,33 +72,33 @@ public sealed class GlobalExceptionMiddleware
             case SqlException sqEx:
                 context.Response.StatusCode = (int)HttpStatusCode.Conflict;
                 errorResponse.Message = "Database error occurred";
-                errorResponse.ErrorCode = "DATABASE_ERROR";
+                errorResponse.ErrorCode = ErrorCodes.Database;
                 errorResponse.Details = HandleSqlException(sqEx);
                 break;
 
             case UnauthorizedAccessException:
                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                 errorResponse.Message = "Not authorized";
-                errorResponse.ErrorCode = "UNAUTHORIZED";
+                errorResponse.ErrorCode = ErrorCodes.UnAuthorize;
                 break;
 
             case ValidationExceptionDto validationEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 errorResponse.Message = validationEx.Message;
-                errorResponse.ErrorCode = "VALIDATION_ERROR";
+                errorResponse.ErrorCode = ErrorCodes.Validation;
                 break;
 
             case CustomerSyncException custEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 errorResponse.Message = $"Customer sync failed for {custEx.CustomerCode}";
-                errorResponse.ErrorCode = "CUSTOMER_SYNC_ERROR";
+                errorResponse.ErrorCode = ErrorCodes.CustomerSync;
                 errorResponse.CustomerCode = custEx.CustomerCode;
                 break;
 
             case MaterialSyncException matEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 errorResponse.Message = $"Material sync failed for {matEx.MaterialCode}";
-                errorResponse.ErrorCode = "MATERIAL_SYNC_ERROR";
+                errorResponse.ErrorCode = ErrorCodes.MaterialSync;
                 errorResponse.MaterialCode = matEx.MaterialCode;
                 break;
 
@@ -106,12 +107,11 @@ public sealed class GlobalExceptionMiddleware
                 errorResponse.Message = _env.IsDevelopment()
                     ? exception.Message
                     : "An unexpected error occurred";
-                errorResponse.ErrorCode = "INTERNAL_ERROR";
+                errorResponse.ErrorCode = ErrorCodes.Unexpected;
                 break;
         }
 
-        var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault()
-            ?? context.TraceIdentifier;
+        var correlationId = CorrelationContext.CorrelationId;
 
         _logger.LogError(
             exception,
@@ -128,11 +128,14 @@ public sealed class GlobalExceptionMiddleware
             errorResponse.InnerException = exception.InnerException?.Message;
         }
 
-        var result = JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = _env.IsDevelopment()
-        });
+        var result = JsonSerializer.Serialize(
+            errorResponse,
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = _env.IsDevelopment(),
+            }
+        );
 
         await context.Response.WriteAsync(result);
     }

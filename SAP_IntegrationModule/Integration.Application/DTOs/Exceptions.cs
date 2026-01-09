@@ -16,11 +16,13 @@ public abstract class IntegrationException : Exception
 public static class ErrorCodes
 {
     public const string Validation = "VALIDATION_ERROR";
-    public const string CustomerValidation = "CUSTOMER_VALIDATION_ERROR";
-    public const string SapBusiness = "SAP_BUSINESS_ERROR";
-    public const string SapTechnical = "SAP_TECHNICAL_ERROR";
+    public const string SapError = "SAP_ERROR";
     public const string Database = "DATABASE_ERROR";
+    public const string DatabaseUpdate = "DATABASE_UPDATE_ERROR";
     public const string Unexpected = "UNEXPECTED_ERROR";
+    public const string UnAuthorize = "UNAUTHORIZED";
+    public const string CustomerSync = "CUSTOMER_SYNC_ERROR";
+    public const string MaterialSync = "MATERIAL_SYNC_ERROR";
 }
 
 public sealed class ValidationExceptionDto : Exception

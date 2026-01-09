@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Integration.Application.Helpers;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
@@ -92,10 +93,7 @@ public abstract class ResilientBackgroundService : BackgroundService
 
                 try
                 {
-                    _logger.LogInformation(
-                        "{ServiceName} starting execution cycle",
-                        _serviceName
-                    );
+                    _logger.LogInformation("{ServiceName} starting execution cycle", _serviceName);
 
                     await ExecuteOnceAsync(stoppingToken);
 
@@ -143,22 +141,19 @@ public abstract class ResilientBackgroundService : BackgroundService
 
     private async Task ExecuteOnceAsync(CancellationToken token)
     {
-        var correlationId = Guid.NewGuid().ToString("N");
+        CorrelationContext.CorrelationId = $"WORKER-{Guid.NewGuid()}";
 
-        using (LogContext.PushProperty("CorrelationId", correlationId))
+        using (LogContext.PushProperty("CorrelationId", CorrelationContext.CorrelationId))
         {
             _logger.LogInformation(
                 "{ServiceName} execution started with correlation ID: {CorrelationId}",
                 _serviceName,
-                correlationId
+                CorrelationContext.CorrelationId
             );
 
             await _retryPolicy.ExecuteAsync(ct => ExecuteCycleAsync(ct), token);
 
-            _logger.LogInformation(
-                "{ServiceName} execution finished",
-                _serviceName
-            );
+            _logger.LogInformation("{ServiceName} execution finished", _serviceName);
         }
     }
 
@@ -255,14 +250,10 @@ public abstract class ResilientBackgroundService : BackgroundService
             ErrorType = ex.GetType().Name,
             ErrorMessage = ex.Message,
             StackTrace = ex.StackTrace?.Substring(0, Math.Min(500, ex.StackTrace.Length)),
-            InnerException = ex.InnerException?.Message
+            InnerException = ex.InnerException?.Message,
         };
 
-        _logger.LogError(
-            "{ServiceName} error details {@ErrorDetails}",
-            _serviceName,
-            errorDetails
-        );
+        _logger.LogError("{ServiceName} error details {@ErrorDetails}", _serviceName, errorDetails);
     }
 
     private void OnConfigurationChanged(BackgroundServiceOptions options, string name)
@@ -302,4 +293,3 @@ public abstract class ResilientBackgroundService : BackgroundService
         return transientErrors.Contains(errorNumber);
     }
 }
-

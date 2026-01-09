@@ -35,72 +35,98 @@ public sealed class MaterialSyncService : IMaterialSyncService
         XontMaterialSyncRequestDto request
     )
     {
+        var stopwatch = Stopwatch.StartNew();
+        var correlationId = CorrelationContext.CorrelationId;
         var result = new MaterialSyncResultDto { SyncDate = DateTime.Now };
 
-        try
+        using (
+            _logger.BeginScope(
+                new Dictionary<string, object>
+                {
+                    ["CorrelationId"] = correlationId,
+                    ["SyncType"] = "Material",
+                    ["RequestDate"] = request.Date,
+                }
+            )
+        )
         {
-            if (request == null)
-                throw new ArgumentNullException(nameof(request));
-
-            if (request.Date == default)
-                throw new ArgumentException("Date is required", nameof(request.Date));
-
-            var sapMaterials = await _sapClient.GetMaterialChangesAsync(request);
-
-            result.TotalRecords = sapMaterials?.Count ?? 0;
-
-            if (sapMaterials == null || !sapMaterials.Any())
-            {
-                result.Success = true;
-                result.Message = "No material changes found";
-
-                return result;
-            }
-
-            var materialGroups = sapMaterials.GroupBy(m => new { m.Material }).ToList();
-
-            await _productRepository.BeginTransactionAsync();
-
             try
             {
-                foreach (var group in materialGroups)
+                if (request == null)
+                    throw new ArgumentNullException(nameof(request));
+
+                if (request.Date == default)
+                    throw new ArgumentException("Date is required", nameof(request.Date));
+
+                var sapMaterials = await _sapClient.GetMaterialChangesAsync(request);
+
+                result.TotalRecords = sapMaterials?.Count ?? 0;
+
+                if (sapMaterials == null || !sapMaterials.Any())
                 {
-                    await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
+                    result.Success = true;
+                    result.Message = "No material changes found";
+
+                    return result;
                 }
 
-                await _productRepository.CommitTransactionAsync();
+                var materialGroups = sapMaterials.GroupBy(m => new { m.Material }).ToList();
 
-                result.Success = true;
-                result.Message =
-                    $"Material sync completed. "
-                    + $"Total: {result.TotalRecords}, "
-                    + $"New: {result.NewMaterials}, "
-                    + $"Updated: {result.UpdatedMaterials}, "
-                    + $"Skipped: {result.SkippedMaterials}, "
-                    + $"Failed: {result.FailedRecords}";
+                await _productRepository.BeginTransactionAsync();
+
+                try
+                {
+                    foreach (var group in materialGroups)
+                    {
+                        await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
+                    }
+
+                    await _productRepository.CommitTransactionAsync();
+
+                    result.Success = true;
+                    result.Message =
+                        $"Material sync completed. "
+                        + $"Total: {result.TotalRecords}, "
+                        + $"New: {result.NewMaterials}, "
+                        + $"Updated: {result.UpdatedMaterials}, "
+                        + $"Skipped: {result.SkippedMaterials}, "
+                        + $"Failed: {result.FailedRecords}";
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Error during material processing in sync , rolling back transaction"
+                    );
+
+                    await _productRepository.RollbackTransactionAsync();
+
+                    result.Success = false;
+                    result.Message = $"Sync  failed and rolled back: {ex.Message}";
+                    throw;
+                }
+            }
+            catch (SapApiExceptionDto sapEx)
+            {
+                result.Success = false;
+                result.Message = $"SAP API error: {sapEx.Message}";
+                _logger.LogError(sapEx, "SAP API error during customer sync");
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Error during material processing in sync , rolling back transaction"
-                );
-
-                await _productRepository.RollbackTransactionAsync();
-
                 result.Success = false;
-                result.Message = $"Sync  failed and rolled back: {ex.Message}";
-                throw;
+                result.Message = $"Sync  failed: {ex.Message}";
+
+                _logger.LogError(ex, "Material sync  failed");
+
+                throw new MaterialSyncException($"Material sync failed: {ex.Message}", ex);
             }
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.Message = $"Sync  failed: {ex.Message}";
-
-            _logger.LogError(ex, "Material sync  failed");
-
-            throw new MaterialSyncException($"Material sync failed: {ex.Message}", ex);
+            finally
+            {
+                stopwatch.Stop();
+                result.ElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
+            }
         }
 
         return result;
@@ -115,64 +141,108 @@ public sealed class MaterialSyncService : IMaterialSyncService
         if (!sapMaterials.Any())
             return;
 
-        var globalMaterialObj = await _mappingHelper.MapSapToXontGlobalMaterialAsync(
-            sapMaterials[0]
-        );
-
-        var globalMaterialExisting = await _productRepository.GetGlobalProductAsync(
-            globalMaterialObj.ProductCode
-        );
-        if (globalMaterialExisting == null)
-        {
-            await _productRepository.CreateGlobalProductAsync(globalMaterialObj);
-        }
-        else
-        {
-            if (_mappingHelper.HasGlobalMaterialChanges(globalMaterialExisting, globalMaterialObj))
-            {
-                _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
-            }
-        }
-        foreach (var sapMaterial in sapMaterials)
+        using (
+            _logger.BeginScope(
+                new Dictionary<string, object>
+                {
+                    ["MaterialCode"] = materialCode,
+                    ["RecordCount"] = sapMaterials.Count,
+                }
+            )
+        )
         {
             try
             {
-                var xontProduct = await _mappingHelper.MapSapToXontMaterialAsync(sapMaterial);
-
-                var existing = await _productRepository.GetByProductCodeAsync(
-                    xontProduct.ProductCode,
-                    xontProduct.BusinessUnit
+                var globalMaterialObj = await _mappingHelper.MapSapToXontGlobalMaterialAsync(
+                    sapMaterials[0]
                 );
 
-                if (existing == null)
+                var globalMaterialExisting = await _productRepository.GetGlobalProductAsync(
+                    globalMaterialObj.ProductCode
+                );
+                if (globalMaterialExisting == null)
                 {
-                    await _productRepository.CreateProductAsync(xontProduct);
-                    result.NewMaterials++;
+                    await _productRepository.CreateGlobalProductAsync(globalMaterialObj);
                 }
-                else
+                else if (
+                    _mappingHelper.HasGlobalMaterialChanges(
+                        globalMaterialExisting,
+                        globalMaterialObj
+                    )
+                )
                 {
-                    if (_mappingHelper.HasMaterialChanges(existing, xontProduct))
+                    _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
+                }
+
+                foreach (var sapMaterial in sapMaterials)
+                {
+                    try
                     {
-                        _mappingHelper.UpdateMaterial(existing, xontProduct);
-                        result.UpdatedMaterials++;
+                        var xontProduct = await _mappingHelper.MapSapToXontMaterialAsync(
+                            sapMaterial
+                        );
+
+                        var existing = await _productRepository.GetByProductCodeAsync(
+                            xontProduct.ProductCode,
+                            xontProduct.BusinessUnit
+                        );
+
+                        if (existing == null)
+                        {
+                            await _productRepository.CreateProductAsync(xontProduct);
+                            result.NewMaterials++;
+                        }
+                        else
+                        {
+                            if (_mappingHelper.HasMaterialChanges(existing, xontProduct))
+                            {
+                                _mappingHelper.UpdateMaterial(existing, xontProduct);
+                                result.UpdatedMaterials++;
+                            }
+                            else
+                            {
+                                result.SkippedMaterials++;
+                            }
+                        }
                     }
-                    else
+                    catch (ValidationExceptionDto valEx)
                     {
-                        result.SkippedMaterials++;
+                        _logger.LogWarning(
+                            "Validation failed for material {MaterialCode}: {Message}",
+                            sapMaterial.Material,
+                            valEx.Message
+                        );
+                        result.FailedRecords++;
+                        result.ValidationErrors ??= new List<string>();
+                        result.ValidationErrors.Add(
+                            $"Material {sapMaterial.Material}: {valEx.Message}"
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Error processing material {materialCode} in business unit",
+                            sapMaterial.Material
+                        );
+                        result.FailedRecords++;
+                        throw new CustomerSyncException(
+                            $"Failed to process material {sapMaterial.Material}: {ex.Message}",
+                            sapMaterial.Material,
+                            ex
+                        );
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing material {Code} in sync ", materialCode);
-
-                result.FailedRecords++;
-
-                throw new MaterialSyncException(
-                    $"Failed to process material {materialCode}: {ex.Message}",
-                    materialCode,
-                    ex
+                _logger.LogError(
+                    ex,
+                    "Error processing material group {materialCode}",
+                    materialCode
                 );
+                result.FailedRecords += sapMaterials.Count;
+                throw;
             }
         }
     }

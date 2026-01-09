@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Azure;
 using Integration.Application.DTOs;
+using Integration.Application.Helpers;
 using Integration.Application.Interfaces;
 using Polly;
 
@@ -30,16 +31,19 @@ public sealed class RequestLoggingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = GetOrCreateCorrelationId(context);
+        var correlationId = $"API-{Guid.NewGuid()}";
+        CorrelationContext.CorrelationId = correlationId;
 
-        context.Response.Headers["X-Correlation-ID"] = correlationId;
-
-        using (_logger.BeginScope(new Dictionary<string, object>
-        {
-            ["CorrelationId"] = correlationId,
-            ["RequestPath"] = context.Request.Path,
-            ["RequestMethod"] = context.Request.Method
-        }))
+        using (
+            _logger.BeginScope(
+                new Dictionary<string, object>
+                {
+                    ["CorrelationId"] = correlationId,
+                    ["RequestPath"] = context.Request.Path,
+                    ["RequestMethod"] = context.Request.Method,
+                }
+            )
+        )
         {
             var endpoint = context.GetEndpoint();
             var controllerName = endpoint
@@ -201,14 +205,5 @@ public sealed class RequestLoggingMiddleware
         var body = await reader.ReadToEndAsync();
         response.Body.Seek(0, SeekOrigin.Begin);
         return string.IsNullOrWhiteSpace(body) ? "[Empty Response]" : body;
-    }
-    private string GetOrCreateCorrelationId(HttpContext context)
-    {
-        if (context.Request.Headers.TryGetValue("X-Correlation-ID", out var correlationId))
-        {
-            return correlationId!;
-        }
-
-        return Guid.NewGuid().ToString();
     }
 }

@@ -20,7 +20,7 @@ public class MaterialSyncBackgroundService : ResilientBackgroundService
 
     protected override async Task ExecuteCycleAsync(CancellationToken stoppingToken)
     {
-        using var scope = _serviceProvider.CreateAsyncScope();
+        await using var scope = _serviceProvider.CreateAsyncScope();
         var syncService = scope.ServiceProvider.GetRequiredService<IMaterialSyncService>();
 
         var request = new XontMaterialSyncRequestDto

@@ -20,28 +20,31 @@ public sealed class CustomerSyncService : ICustomerSyncService
         ILogger<CustomerSyncService> logger
     )
     {
-        _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
+        _customerRepository =
+            customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
         _sapClient = sapClient ?? throw new ArgumentNullException(nameof(sapClient));
         _mappingHelper = mappingHelper ?? throw new ArgumentNullException(nameof(mappingHelper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<CustomerSyncResultDto> SyncCustomersFromSapAsync(XontCustomerSyncRequestDto request)
+    public async Task<CustomerSyncResultDto> SyncCustomersFromSapAsync(
+        XontCustomerSyncRequestDto request
+    )
     {
         var stopwatch = Stopwatch.StartNew();
-        var correlationId = Guid.NewGuid().ToString();
-        var result = new CustomerSyncResultDto
-        {
-            SyncDate = DateTime.UtcNow,
-            CorrelationId = correlationId
-        };
+        var correlationId = CorrelationContext.CorrelationId;
+        var result = new CustomerSyncResultDto { SyncDate = DateTime.UtcNow };
 
-        using (_logger.BeginScope(new Dictionary<string, object>
-        {
-            ["CorrelationId"] = correlationId,
-            ["SyncType"] = "Customer",
-            ["RequestDate"] = request.Date
-        }))
+        using (
+            _logger.BeginScope(
+                new Dictionary<string, object>
+                {
+                    ["CorrelationId"] = correlationId,
+                    ["SyncType"] = "Customer",
+                    ["RequestDate"] = request.Date,
+                }
+            )
+        )
         {
             try
             {
@@ -62,11 +65,17 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 {
                     result.Success = true;
                     result.Message = "No customer changes found for the specified date";
-                    _logger.LogInformation("No customer changes found for date: {Date}", request.Date);
+                    _logger.LogInformation(
+                        "No customer changes found for date: {Date}",
+                        request.Date
+                    );
                     return result;
                 }
 
-                _logger.LogInformation("Retrieved {Count} customer records from SAP", result.TotalRecords);
+                _logger.LogInformation(
+                    "Retrieved {Count} customer records from SAP",
+                    result.TotalRecords
+                );
 
                 var groups = sapCustomers
                     .Where(c => !string.IsNullOrWhiteSpace(c.Customer))
@@ -83,9 +92,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     for (int i = 0; i < groups.Count; i += batchSize)
                     {
                         var batch = groups.Skip(i).Take(batchSize).ToList();
-                        _logger.LogDebug("Processing batch {BatchNumber} of {TotalBatches}",
+                        _logger.LogDebug(
+                            "Processing batch {BatchNumber} of {TotalBatches}",
                             (i / batchSize) + 1,
-                            (int)Math.Ceiling((double)groups.Count / batchSize));
+                            (int)Math.Ceiling((double)groups.Count / batchSize)
+                        );
 
                         foreach (var group in batch)
                         {
@@ -121,7 +132,8 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     await _customerRepository.RollbackTransactionAsync();
 
                     result.Success = false;
-                    result.Message = $"Sync failed after processing {processedGroups} groups: {ex.Message}";
+                    result.Message =
+                        $"Sync failed after processing {processedGroups} groups: {ex.Message}";
                     throw;
                 }
             }
@@ -167,7 +179,15 @@ public sealed class CustomerSyncService : ICustomerSyncService
             if (request.Date.Length != 8)
                 errors.Add("Date must be in YYYYMMDD format (8 characters)");
 
-            if (!DateTime.TryParseExact(request.Date, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out _))
+            if (
+                !DateTime.TryParseExact(
+                    request.Date,
+                    "yyyyMMdd",
+                    null,
+                    System.Globalization.DateTimeStyles.None,
+                    out _
+                )
+            )
                 errors.Add("Date must be a valid date in YYYYMMDD format");
         }
 
@@ -177,39 +197,61 @@ public sealed class CustomerSyncService : ICustomerSyncService
     private async Task ProcessCustomerGroupAsync(
         string customerCode,
         List<SapCustomerResponseDto> sapCustomers,
-        CustomerSyncResultDto result)
+        CustomerSyncResultDto result
+    )
     {
         if (!sapCustomers.Any())
             return;
 
-        using (_logger.BeginScope(new Dictionary<string, object>
-        {
-            ["CustomerCode"] = customerCode,
-            ["RecordCount"] = sapCustomers.Count
-        }))
+        using (
+            _logger.BeginScope(
+                new Dictionary<string, object>
+                {
+                    ["CustomerCode"] = customerCode,
+                    ["RecordCount"] = sapCustomers.Count,
+                }
+            )
+        )
         {
             try
             {
-                var globalCustomerObj = await _mappingHelper.MapSapToXontGlobalCustomerAsync(sapCustomers[0]);
+                var globalCustomerObj = await _mappingHelper.MapSapToXontGlobalCustomerAsync(
+                    sapCustomers[0]
+                );
 
-                var globalCustomerExisting = await _customerRepository.GetGlobalRetailerAsync(globalCustomerObj.RetailerCode);
+                var globalCustomerExisting = await _customerRepository.GetGlobalRetailerAsync(
+                    globalCustomerObj.RetailerCode
+                );
 
                 if (globalCustomerExisting == null)
                 {
                     await _customerRepository.CreateGlobalRetailerAsync(globalCustomerObj);
-                    _logger.LogDebug("Created global retailer: {RetailerCode}", globalCustomerObj.RetailerCode);
+                    _logger.LogDebug(
+                        "Created global retailer: {RetailerCode}",
+                        globalCustomerObj.RetailerCode
+                    );
                 }
-                else if (_mappingHelper.HasGlobalRetailerChanges(globalCustomerExisting, globalCustomerObj))
+                else if (
+                    _mappingHelper.HasGlobalRetailerChanges(
+                        globalCustomerExisting,
+                        globalCustomerObj
+                    )
+                )
                 {
                     _mappingHelper.UpdateGlobalCustomer(globalCustomerExisting, globalCustomerObj);
-                    _logger.LogDebug("Updated global retailer: {RetailerCode}", globalCustomerObj.RetailerCode);
+                    _logger.LogDebug(
+                        "Updated global retailer: {RetailerCode}",
+                        globalCustomerObj.RetailerCode
+                    );
                 }
 
                 foreach (var sapCustomer in sapCustomers)
                 {
                     try
                     {
-                        var xontRetailer = await _mappingHelper.MapSapToXontCustomerAsync(sapCustomer);
+                        var xontRetailer = await _mappingHelper.MapSapToXontCustomerAsync(
+                            sapCustomer
+                        );
 
                         var existing = await _customerRepository.GetByRetailerCodeAsync(
                             xontRetailer.RetailerCode,
@@ -220,8 +262,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         {
                             await _customerRepository.CreateRetailerAsync(xontRetailer);
                             result.NewCustomers++;
-                            _logger.LogDebug("Created new retailer: {RetailerCode} in BU: {BusinessUnit}",
-                                xontRetailer.RetailerCode, xontRetailer.BusinessUnit);
+                            _logger.LogDebug(
+                                "Created new retailer: {RetailerCode} in BU: {BusinessUnit}",
+                                xontRetailer.RetailerCode,
+                                xontRetailer.BusinessUnit
+                            );
                         }
                         else
                         {
@@ -229,14 +274,20 @@ public sealed class CustomerSyncService : ICustomerSyncService
                             {
                                 _mappingHelper.UpdateCustomer(existing, xontRetailer);
                                 result.UpdatedCustomers++;
-                                _logger.LogDebug("Updated retailer: {RetailerCode} in BU: {BusinessUnit}",
-                                    xontRetailer.RetailerCode, xontRetailer.BusinessUnit);
+                                _logger.LogDebug(
+                                    "Updated retailer: {RetailerCode} in BU: {BusinessUnit}",
+                                    xontRetailer.RetailerCode,
+                                    xontRetailer.BusinessUnit
+                                );
                             }
                             else
                             {
                                 result.SkippedCustomers++;
-                                _logger.LogDebug("No changes for retailer: {RetailerCode} in BU: {BusinessUnit}",
-                                    xontRetailer.RetailerCode, xontRetailer.BusinessUnit);
+                                _logger.LogDebug(
+                                    "No changes for retailer: {RetailerCode} in BU: {BusinessUnit}",
+                                    xontRetailer.RetailerCode,
+                                    xontRetailer.BusinessUnit
+                                );
                             }
                         }
                     }
@@ -249,7 +300,9 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         );
                         result.FailedRecords++;
                         result.ValidationErrors ??= new List<string>();
-                        result.ValidationErrors.Add($"Customer {sapCustomer.Customer}: {valEx.Message}");
+                        result.ValidationErrors.Add(
+                            $"Customer {sapCustomer.Customer}: {valEx.Message}"
+                        );
                     }
                     catch (Exception ex)
                     {

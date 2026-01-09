@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
-public sealed class RetailerRepository : IRetailerRepository, IAsyncDisposable
+public sealed class RetailerRepository : IRetailerRepository
 {
     private readonly UserDbContext _context;
     private IDbContextTransaction? _transaction;
@@ -16,25 +16,14 @@ public sealed class RetailerRepository : IRetailerRepository, IAsyncDisposable
     }
 
     public async Task BeginTransactionAsync() =>
-        _transaction = await _context.Database.BeginTransactionAsync();
+         _transaction = await _context.Database.BeginTransactionAsync();
 
     public async Task CommitTransactionAsync()
     {
-        try
-        {
-            await _context.SaveChangesAsync();
-            await _transaction!.CommitAsync();
-        }
-        catch
-        {
-            await RollbackTransactionAsync();
-            throw;
-        }
-        finally
-        {
-            await _transaction!.DisposeAsync();
-            _transaction = null;
-        }
+        await _context.SaveChangesAsync();
+        await _transaction!.CommitAsync();
+        await _transaction.DisposeAsync();
+        _transaction = null;
     }
 
     public async Task RollbackTransactionAsync()
@@ -70,9 +59,4 @@ public sealed class RetailerRepository : IRetailerRepository, IAsyncDisposable
         await _context.GlobalRetailers.AddAsync(retailer);
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        if (_transaction != null)
-            await _transaction.DisposeAsync();
-    }
 }

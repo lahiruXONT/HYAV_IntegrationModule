@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Integration.Worker
 {
-
     public enum BackgroundServiceState
     {
         Starting,
@@ -24,7 +23,6 @@ namespace Integration.Worker
         public string? DailyScheduleTime { get; set; }
         public int MaxConsecutiveFailures { get; set; } = 10;
     }
-
 
     public class HealthMetrics
     {

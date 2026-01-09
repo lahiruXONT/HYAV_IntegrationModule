@@ -75,4 +75,6 @@ public sealed class MaterialSyncResultDto
     public int FailedRecords { get; set; }
     public string Message { get; set; } = string.Empty;
     public DateTime SyncDate { get; set; }
+    public long ElapsedMilliseconds { get; internal set; }
+    public List<string> ValidationErrors { get; internal set; }
 }
