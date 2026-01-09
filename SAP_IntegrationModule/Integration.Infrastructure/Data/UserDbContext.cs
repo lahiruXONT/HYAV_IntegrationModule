@@ -22,12 +22,50 @@ public class UserDbContext : DbContext
     public DbSet<TerritoryPostalCode> TerritoryPostalCodes { get; set; }
     public DbSet<Retailer> Retailers { get; set; }
     public DbSet<Product> Products { get; set; }
+    public DbSet<MasterDefinitionValue> MasterDefinitionValues { get; set; }
+    public DbSet<MasterDefinition> MasterDefinitions { get; set; }
+    public DbSet<RetailerClassification> RetailerClassifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         if (modelBuilder == null)
             throw new ArgumentNullException(nameof(modelBuilder));
+        modelBuilder.Entity<MasterDefinitionValue>(entity =>
+        {
+            entity.ToTable("MasterDefinitionValue", "XA");
+            entity.HasKey(e => e.RecordID).HasName($"PK_MasterDefinitionValue");
+        });
+        modelBuilder.Entity<MasterDefinition>(entity =>
+        {
+            entity.ToTable("MasterDefinition", "XA");
+            entity.HasKey(e => e.RecordID).HasName($"PK_MasterDefinition");
+        });
+        modelBuilder.Entity<RetailerClassification>(entity =>
+        {
+            entity.ToTable("RetailerClassification", "RD");
 
+            entity
+                .HasKey(e => new
+                {
+                    e.BusinessUnit,
+                    e.RetailerCode,
+                    e.MasterGroup,
+                    e.MasterGroupValue,
+                })
+                .HasName("PK_RD_RetailerClassification");
+        });
+
+        modelBuilder.Entity<GlobalRetailer>(entity =>
+        {
+            entity.ToTable("GlobalRetailer", "RD");
+            entity.HasKey(e => e.RecordID).HasName($"PK_GlobalRetailer");
+            entity.HasIndex(e => e.RetailerCode).IsUnique();
+            entity.Property(e => e.RecordID).ValueGeneratedOnAdd();
+
+            entity.Property(e => e.CreatedOn).HasDefaultValueSql("GETDATE()");
+
+            entity.Property(e => e.UpdatedOn).HasDefaultValueSql("GETDATE()");
+        });
         modelBuilder.Entity<GlobalRetailer>(entity =>
         {
             entity.ToTable("GlobalRetailer", "RD");

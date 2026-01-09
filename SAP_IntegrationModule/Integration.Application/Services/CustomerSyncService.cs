@@ -2,6 +2,7 @@
 using Integration.Application.DTOs;
 using Integration.Application.Helpers;
 using Integration.Application.Interfaces;
+using Integration.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Integration.Application.Services;
@@ -58,7 +59,37 @@ public sealed class CustomerSyncService : ICustomerSyncService
 
                 _logger.LogInformation("Starting customer sync for date: {Date}", request.Date);
 
-                var sapCustomers = await _sapClient.GetCustomerChangesAsync(request);
+                var dummySapCustomers = new List<SapCustomerResponseDto>
+                {
+                    new SapCustomerResponseDto
+                    {
+                        SalesOrganization = "6070", // 4 chars max
+                        Distributionchannel = "01", // 2 chars max
+                        Division = "67", // 2 chars max
+                        Customer = "CUST002", // 15 chars max
+                        CustomerName = "Test Customer2", // 75 chars max
+                        HouseNo = "123", // 50 chars max
+                        Street = "Main St", // 50 chars max
+                        Street2 = "Suite A", // 50 chars max
+                        Street3 = "",
+                        City = "Colombo", // 50 chars max
+                        Telephone = "112345678", // 20 chars max
+                        Fax = "112345679", // 20 chars max
+                        Email = "test@ex.com", // 50 chars max
+                        PaymentTerm = "NET", // 3 chars max - FIXED!
+                        CreditLimit = 5000.00m,
+                        VATRegistrationNumber = "VAT123", // 20 chars max
+                        CustomerGroup1 = "GRP", // 10 chars max for RetailerTypeCode
+                        CustomerGroup2 = "GRP", // 10 chars max for RetailerClassCode
+                        CustomerGroup3 = "GRP", // 10 chars max for RetailerCategoryCode
+                        CustomerGroup4 = "",
+                        CustomerGroup5 = "",
+                        RegionCode = "WE", // Used for TerritoryCode (4 chars max)
+                        PostalCode = "CO01", // Used for TerritoryCode - might be too short, consider "HOM1"
+                        TodaysDate = DateTime.Now.ToString("yyyyMMdd"),
+                    },
+                };
+                var sapCustomers = dummySapCustomers;
                 result.TotalRecords = sapCustomers?.Count ?? 0;
 
                 if (sapCustomers == null || !sapCustomers.Any())
@@ -106,7 +137,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     }
 
                     await _customerRepository.CommitTransactionAsync();
-
+                    await _customerRepository.ClearGeoCacheAsync();
                     result.Success = true;
                     result.Message = BuildSuccessMessage(result);
 
@@ -261,6 +292,12 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         if (existing == null)
                         {
                             await _customerRepository.CreateRetailerAsync(xontRetailer);
+
+                            await _customerRepository.AddOrUpdateRetailerGeographicDataAsync(
+                                xontRetailer.BusinessUnit,
+                                xontRetailer.RetailerCode,
+                                sapCustomer.PostalCode
+                            );
                             result.NewCustomers++;
                             _logger.LogDebug(
                                 "Created new retailer: {RetailerCode} in BU: {BusinessUnit}",
@@ -270,9 +307,24 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         }
                         else
                         {
-                            if (_mappingHelper.HasRetailerChanges(existing, xontRetailer))
+                            var (hasRetailerChanges, hasGeoChanges) =
+                                await _mappingHelper.HasRetailerChanges(
+                                    existing,
+                                    xontRetailer,
+                                    sapCustomer.PostalCode
+                                );
+
+                            if (hasRetailerChanges || hasGeoChanges)
                             {
-                                _mappingHelper.UpdateCustomer(existing, xontRetailer);
+                                if (hasRetailerChanges)
+                                    _mappingHelper.UpdateCustomer(existing, xontRetailer);
+
+                                if (hasGeoChanges)
+                                    await _customerRepository.AddOrUpdateRetailerGeographicDataAsync(
+                                        xontRetailer.BusinessUnit,
+                                        xontRetailer.RetailerCode,
+                                        sapCustomer.PostalCode ?? ""
+                                    );
                                 result.UpdatedCustomers++;
                                 _logger.LogDebug(
                                     "Updated retailer: {RetailerCode} in BU: {BusinessUnit}",

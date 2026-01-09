@@ -139,6 +139,7 @@ try
     );
     builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
+    builder.Services.AddMemoryCache();
     var host = builder.Build();
 
     var logger = host.Services.GetRequiredService<ILogger<Program>>();

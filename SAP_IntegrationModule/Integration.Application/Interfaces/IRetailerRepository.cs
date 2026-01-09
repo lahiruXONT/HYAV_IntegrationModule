@@ -18,4 +18,14 @@ public interface IRetailerRepository
     Task CreateGlobalRetailerAsync(GlobalRetailer retailer);
     Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode);
     Task<bool> PostalCodeTerritoryExistsAsync(string postalCode);
+
+    Task AddOrUpdateRetailerGeographicDataAsync(
+        string businessUnit,
+        string retailerCode,
+        string postalCode
+    );
+
+    Task<string?> GetCurrentPostalCodeForRetailerAsync(string businessUnit, string retailerCode);
+
+    Task ClearGeoCacheAsync();
 }

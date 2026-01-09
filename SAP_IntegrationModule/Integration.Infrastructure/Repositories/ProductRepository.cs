@@ -16,7 +16,7 @@ public sealed class ProductRepository : IProductRepository
     }
 
     public async Task BeginTransactionAsync() =>
-         _transaction = await _context.Database.BeginTransactionAsync();
+        _transaction = await _context.Database.BeginTransactionAsync();
 
     public async Task CommitTransactionAsync()
     {
@@ -54,5 +54,4 @@ public sealed class ProductRepository : IProductRepository
     {
         await _context.GlobalProducts.AddAsync(product);
     }
-
 }

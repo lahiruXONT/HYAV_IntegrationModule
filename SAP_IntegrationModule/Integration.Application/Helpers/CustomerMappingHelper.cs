@@ -185,14 +185,19 @@ public sealed class CustomerMappingHelper
         }
     }
 
-    public bool HasRetailerChanges(Retailer existing, Retailer updated)
+    public async Task<(bool retailerChanged, bool geoClassificationChanged)> HasRetailerChanges(
+        Retailer existing,
+        Retailer updated,
+        string postalCode
+    )
     {
         if (existing == null)
             throw new ArgumentNullException(nameof(existing));
         if (updated == null)
             throw new ArgumentNullException(nameof(updated));
 
-        return existing.RetailerName != updated.RetailerName
+        bool retailerChanged =
+            existing.RetailerName != updated.RetailerName
             || existing.AddressLine1 != updated.AddressLine1
             || existing.AddressLine2 != updated.AddressLine2
             || existing.AddressLine3 != updated.AddressLine3
@@ -209,10 +214,20 @@ public sealed class CustomerMappingHelper
             || existing.VatRegistrationNo != updated.VatRegistrationNo
             || existing.RetailerTypeCode != updated.RetailerTypeCode
             || existing.RetailerClassCode != updated.RetailerClassCode
-            || existing.RetailerCategoryCode != updated.RetailerCategoryCode
-        //|| existing.District != updated.District ||
-        //existing.Town != updated.Town
-        ;
+            || existing.RetailerCategoryCode != updated.RetailerCategoryCode;
+
+        string retailerTown =
+            await _customerRepository.GetCurrentPostalCodeForRetailerAsync(
+                existing.BusinessUnit,
+                existing.RetailerCode
+            ) ?? "";
+        bool geoClassificationChanged = !string.Equals(
+            postalCode?.Trim(),
+            retailerTown?.Trim(),
+            StringComparison.OrdinalIgnoreCase
+        );
+
+        return (retailerChanged, geoClassificationChanged);
     }
 
     public void UpdateCustomer(Retailer existing, Retailer updated)
@@ -367,15 +382,6 @@ public sealed class CustomerMappingHelper
         existing.UpdatedBy = "SAP_SYNC";
     }
 
-    private string NormalizeString(string? input, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return string.Empty;
-
-        var trimmed = input.Trim();
-        return trimmed.Length > maxLength ? trimmed.Substring(0, maxLength) : trimmed;
-    }
-
     private DateTime ParseSapDate(string sapDate)
     {
         if (string.IsNullOrEmpty(sapDate))
@@ -418,6 +424,4 @@ public sealed class CustomerMappingHelper
             return DateTime.UtcNow;
         }
     }
-
-    // ... rest of the existing methods ...
 }

@@ -149,6 +149,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerSyncService, CustomerSyncService>();
 builder.Services.AddScoped<IMaterialSyncService, MaterialSyncService>();
 
+builder.Services.AddMemoryCache();
+
 // --- Build the application ---
 var app = builder.Build();
 

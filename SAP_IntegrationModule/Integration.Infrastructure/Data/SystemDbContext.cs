@@ -15,6 +15,7 @@ public class SystemDbContext : DbContext
         modelBuilder.Entity<ZYBusinessUnit>(entity =>
         {
             entity.ToTable("ZYBusinessUnit", "dbo");
+            entity.HasKey(e => e.BusinessUnit).HasName("PK_ZYBusinessUnit");
         });
     }
 }
