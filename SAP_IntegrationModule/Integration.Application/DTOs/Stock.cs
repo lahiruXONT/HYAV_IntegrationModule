@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Integration.Application.DTOs;
+﻿namespace Integration.Application.DTOs;
 
 public sealed class StockRecordDto
 {

@@ -60,15 +60,13 @@ public sealed class CustomerMappingHelper
 
                 //Division =  sapCustomer.Division?.Trim(),
                 //SalesOrganization = sapCustomer.SalesOrganization?.Trim(),
-                DistributionChannel = sapCustomer?.Distributionchannel?? string.Empty,
+                DistributionChannel = sapCustomer?.Distributionchannel ?? string.Empty,
 
                 // Default values
                 PricingMethod = string.Empty,
                 PriceGroup = string.Empty,
                 TradeSchemeGroup = string.Empty,
                 SalesOperationType = string.Empty,
-
-
 
                 TelephoneNumberSys = string.Empty,
                 ContactName = string.Empty,
@@ -165,7 +163,7 @@ public sealed class CustomerMappingHelper
         {
             errors.Add("Postal Code is required");
         }
-        else if(!await _customerRepository.PostalCodeTerritoryExistsAsync(sapCustomer.PostalCode))
+        else if (!await _customerRepository.PostalCodeTerritoryExistsAsync(sapCustomer.PostalCode))
         {
             var errorMessage =
                 $"No territory found for postal code: '{sapCustomer.PostalCode}' for customer '{sapCustomer.Customer}'";
@@ -199,10 +197,10 @@ public sealed class CustomerMappingHelper
     }
 
     public async Task<(bool retailerChanged, bool geoClassificationChanged)> HasRetailerChanges(
-      Retailer existing,
-      Retailer updated,
-      string postalCode
-  )
+        Retailer existing,
+        Retailer updated,
+        string postalCode
+    )
     {
         if (existing == null)
             throw new ArgumentNullException(nameof(existing));
@@ -210,26 +208,102 @@ public sealed class CustomerMappingHelper
             throw new ArgumentNullException(nameof(updated));
 
         bool retailerChanged =
-            !string.Equals(existing.RetailerCode?.Trim(), updated.RetailerCode?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.RetailerName?.Trim(), updated.RetailerName?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine1?.Trim(), updated.AddressLine1?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine2?.Trim(), updated.AddressLine2?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine3?.Trim(), updated.AddressLine3?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine4?.Trim(), updated.AddressLine4?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine5?.Trim(), updated.AddressLine5?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.TelephoneNumber?.Trim(), updated.TelephoneNumber?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.FaxNumber?.Trim(), updated.FaxNumber?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.EmailAddress?.Trim(), updated.EmailAddress?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.SettlementTermsCode?.Trim(), updated.SettlementTermsCode?.Trim(), StringComparison.OrdinalIgnoreCase)
+            !string.Equals(
+                existing.RetailerCode?.Trim(),
+                updated.RetailerCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.RetailerName?.Trim(),
+                updated.RetailerName?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine1?.Trim(),
+                updated.AddressLine1?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine2?.Trim(),
+                updated.AddressLine2?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine3?.Trim(),
+                updated.AddressLine3?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine4?.Trim(),
+                updated.AddressLine4?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine5?.Trim(),
+                updated.AddressLine5?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.TelephoneNumber?.Trim(),
+                updated.TelephoneNumber?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.FaxNumber?.Trim(),
+                updated.FaxNumber?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.EmailAddress?.Trim(),
+                updated.EmailAddress?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.SettlementTermsCode?.Trim(),
+                updated.SettlementTermsCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
             || existing.CreditLimit != updated.CreditLimit
-            || !string.Equals(existing.TerritoryCode?.Trim(), updated.TerritoryCode?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.DistributionChannel?.Trim(), updated.DistributionChannel?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.VatRegistrationNo?.Trim(), updated.VatRegistrationNo?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.VatCode?.Trim(), updated.VatCode?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.VatStatus?.Trim(), updated.VatStatus?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.RetailerTypeCode?.Trim(), updated.RetailerTypeCode?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.RetailerClassCode?.Trim(), updated.RetailerClassCode?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.RetailerCategoryCode?.Trim(), updated.RetailerCategoryCode?.Trim(), StringComparison.OrdinalIgnoreCase);
+            || !string.Equals(
+                existing.TerritoryCode?.Trim(),
+                updated.TerritoryCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.DistributionChannel?.Trim(),
+                updated.DistributionChannel?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.VatRegistrationNo?.Trim(),
+                updated.VatRegistrationNo?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.VatCode?.Trim(),
+                updated.VatCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.VatStatus?.Trim(),
+                updated.VatStatus?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.RetailerTypeCode?.Trim(),
+                updated.RetailerTypeCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.RetailerClassCode?.Trim(),
+                updated.RetailerClassCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.RetailerCategoryCode?.Trim(),
+                updated.RetailerCategoryCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            );
 
         string retailerTown =
             await _customerRepository.GetCurrentPostalCodeForRetailerAsync(
@@ -245,7 +319,6 @@ public sealed class CustomerMappingHelper
 
         return (retailerChanged, geoClassificationChanged);
     }
-
 
     public void UpdateCustomer(Retailer existing, Retailer updated)
     {
@@ -289,10 +362,8 @@ public sealed class CustomerMappingHelper
                 sapCustomer.Division ?? ""
             );
 
-
             return new GlobalRetailer
             {
-
                 RetailerCode = sapCustomer?.Customer?.Trim() ?? string.Empty,
                 RetailerName = sapCustomer?.CustomerName?.Trim() ?? string.Empty,
                 AddressLine1 = sapCustomer?.HouseNo?.Trim() ?? string.Empty,
@@ -305,12 +376,11 @@ public sealed class CustomerMappingHelper
                 EmailAddress = sapCustomer?.Email?.Trim() ?? string.Empty,
                 // Default values
 
-
                 TelephoneNumberSys = string.Empty,
                 PostCode = "0000",
                 CurrencyCode = "LKR",
                 CurrencyProcessingRequired = "1",
-                
+
                 // Audit fields
                 CreatedOn = DateTime.Now,
                 UpdatedOn = ParseSapDate(sapCustomer?.TodaysDate),
@@ -338,17 +408,56 @@ public sealed class CustomerMappingHelper
         if (updated == null)
             throw new ArgumentNullException(nameof(updated));
 
-        return !string.Equals(existing.RetailerCode?.Trim(), updated.RetailerCode?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.RetailerName?.Trim(), updated.RetailerName?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine1?.Trim(), updated.AddressLine1?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine2?.Trim(), updated.AddressLine2?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine3?.Trim(), updated.AddressLine3?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine4?.Trim(), updated.AddressLine4?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.AddressLine5?.Trim(), updated.AddressLine5?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.TelephoneNumber?.Trim(), updated.TelephoneNumber?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.FaxNumber?.Trim(), updated.FaxNumber?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(existing.EmailAddress?.Trim(), updated.EmailAddress?.Trim(), StringComparison.OrdinalIgnoreCase);
-           
+        return !string.Equals(
+                existing.RetailerCode?.Trim(),
+                updated.RetailerCode?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.RetailerName?.Trim(),
+                updated.RetailerName?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine1?.Trim(),
+                updated.AddressLine1?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine2?.Trim(),
+                updated.AddressLine2?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine3?.Trim(),
+                updated.AddressLine3?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine4?.Trim(),
+                updated.AddressLine4?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.AddressLine5?.Trim(),
+                updated.AddressLine5?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.TelephoneNumber?.Trim(),
+                updated.TelephoneNumber?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.FaxNumber?.Trim(),
+                updated.FaxNumber?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            )
+            || !string.Equals(
+                existing.EmailAddress?.Trim(),
+                updated.EmailAddress?.Trim(),
+                StringComparison.OrdinalIgnoreCase
+            );
     }
 
     public void UpdateGlobalCustomer(GlobalRetailer existing, GlobalRetailer updated)

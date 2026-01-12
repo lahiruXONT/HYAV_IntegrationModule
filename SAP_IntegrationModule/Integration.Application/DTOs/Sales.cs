@@ -1,6 +1,6 @@
 ﻿namespace Integration.Application.DTOs;
 
-public sealed class SalesOrderDto
+public sealed class SalesOrderRequestDto
 {
     // Header Information (1:1)
     public string OrderType { get; set; } = string.Empty;
@@ -34,7 +34,7 @@ public sealed class SalesOrderItemDto
     public string ReferenceNumber { get; set; } = string.Empty;
 }
 
-public sealed class SalesOrderSyncResultDto
+public sealed class SalesOrderSyncResultDto : SapSalesOrderResponseDTO
 {
     public bool Success { get; set; }
     public int TotalRecords { get; set; }
@@ -45,7 +45,7 @@ public sealed class SalesOrderSyncResultDto
     public DateTime SyncDate { get; set; }
 }
 
-public sealed class SapSalesOrderResponseDTO
+public class SapSalesOrderResponseDTO
 {
     public bool Result { get; set; }
     public string Reason { get; set; } = string.Empty;
@@ -64,6 +64,5 @@ public sealed class SalesInvoiceResponseDto
 
     /// O - Open, P - Partial processed, C - Completely processed
     public string? Status { get; set; }
-
     public decimal TotalInvoiceValue { get; set; }
 }

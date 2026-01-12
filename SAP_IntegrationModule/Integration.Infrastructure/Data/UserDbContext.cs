@@ -1,10 +1,5 @@
-﻿using System;
-using Integration.Domain.Entities;
+﻿using Integration.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.SqlServer;
-using Microsoft.EntityFrameworkCore.SqlServer.Metadata.Internal;
-using Microsoft.Extensions.Logging;
 
 namespace Integration.Infrastructure.Data;
 
@@ -25,6 +20,16 @@ public class UserDbContext : DbContext
     public DbSet<MasterDefinitionValue> MasterDefinitionValues { get; set; }
     public DbSet<MasterDefinition> MasterDefinitions { get; set; }
     public DbSet<RetailerClassification> RetailerClassifications { get; set; }
+
+    // Sales Orders
+    public DbSet<SalesOrderHeader> SalesOrderHeaders { get; set; }
+    public DbSet<SalesOrderLine> SalesOrderLines { get; set; }
+    public DbSet<SalesOrderDiscount> SalesOrderDiscounts { get; set; }
+
+    // Sales Invoices
+    public DbSet<SalesInvoiceHeader> SalesInvoiceHeaders { get; set; }
+    public DbSet<SalesInvoiceLine> SalesInvoiceLines { get; set; }
+    public DbSet<SalesInvoiceDiscount> SalesInvoiceDiscounts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,20 +66,7 @@ public class UserDbContext : DbContext
             entity.HasKey(e => e.RecordID).HasName($"PK_GlobalRetailer");
             entity.HasIndex(e => e.RetailerCode).IsUnique();
             entity.Property(e => e.RecordID).ValueGeneratedOnAdd();
-
             entity.Property(e => e.CreatedOn).HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedOn).HasDefaultValueSql("GETDATE()");
-        });
-        modelBuilder.Entity<GlobalRetailer>(entity =>
-        {
-            entity.ToTable("GlobalRetailer", "RD");
-            entity.HasKey(e => e.RecordID).HasName($"PK_GlobalRetailer");
-            entity.HasIndex(e => e.RetailerCode).IsUnique();
-            entity.Property(e => e.RecordID).ValueGeneratedOnAdd();
-
-            entity.Property(e => e.CreatedOn).HasDefaultValueSql("GETDATE()");
-
             entity.Property(e => e.UpdatedOn).HasDefaultValueSql("GETDATE()");
         });
 
@@ -177,6 +169,88 @@ public class UserDbContext : DbContext
             //entity.Property(e => e.Description2)
             //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
         });
+
+        modelBuilder.Entity<SalesOrderHeader>(entity =>
+        {
+            entity.ToTable("SalesOrderHeader", "SD");
+
+            entity.HasKey(e => e.RecID);
+
+            entity.HasIndex(e => e.OrderNo).IsUnique();
+
+            entity.Property(e => e.BusinessUnit).HasMaxLength(4).IsRequired();
+            entity.Property(e => e.RetailerCode).HasMaxLength(15).IsRequired();
+            entity.Property(e => e.OrderComplete).HasMaxLength(1);
+            entity.Property(e => e.IntegratedStatus).HasMaxLength(1);
+
+            entity
+                .HasMany(e => e.Lines)
+                .WithOne(l => l.Header)
+                .HasForeignKey(l => l.HeaderRecID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity
+                .HasMany(e => e.Discounts)
+                .WithOne()
+                .HasForeignKey(d => d.HeaderRecID)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SalesOrderLine>(entity =>
+        {
+            entity.ToTable("SalesOrderLine", "SD");
+
+            entity.HasKey(e => e.RecID);
+
+            entity.Property(e => e.ProductCode).HasMaxLength(15).IsRequired();
+            entity.Property(e => e.WarehouseCode).HasMaxLength(10);
+            entity.Property(e => e.LocationCode).HasMaxLength(10);
+        });
+
+        modelBuilder.Entity<SalesOrderDiscount>(entity =>
+        {
+            entity.ToTable("SalesOrderDiscount", "SD");
+
+            entity.HasKey(e => e.RecID);
+
+            entity.Property(e => e.OrderComplete).HasMaxLength(1);
+            entity.Property(e => e.DiscountReasonCode).HasMaxLength(10);
+        });
+
+        /*
+        modelBuilder.Entity<SalesInvoiceHeader>(entity =>
+        {
+            entity.ToTable("SalesInvoiceHeader", "SD");
+
+            entity.HasKey(e => e.RecID);
+
+            entity.HasIndex(e => e.InvoiceNo).IsUnique();
+
+            entity.Property(e => e.DeliveryStatus).HasMaxLength(1);
+
+            entity.HasMany(e => e.Lines)
+                .WithOne(l => l.Header)
+                .HasForeignKey(l => l.HeaderRecID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Discounts)
+                .WithOne()
+                .HasForeignKey(d => d.HeaderRecID)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SalesInvoiceLine>(entity =>
+        {
+            entity.ToTable("SalesInvoiceLine", "SD");
+            entity.HasKey(e => e.RecID);
+        });
+
+        modelBuilder.Entity<SalesInvoiceDiscount>(entity =>
+        {
+            entity.ToTable("SalesInvoiceDiscount", "SD");
+            entity.HasKey(e => e.RecID);
+        });
+         */
 
         modelBuilder.Entity<User>(entity =>
         {

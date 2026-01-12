@@ -27,6 +27,7 @@ public sealed class Retailer : BaseAuditableEntity
 
     //public string SalesOrganization { get; set; } = string.Empty;
     public string DistributionChannel { get; set; } = string.Empty;
+
     //public string Division { get; set; } = string.Empty;
     public string SettlementTermsCode { get; set; } = string.Empty;
     public string PaymentMethodCode { get; set; } = string.Empty;
@@ -40,10 +41,10 @@ public sealed class Retailer : BaseAuditableEntity
     public string VatRegistrationNo { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 
-    public string  PricingMethod { get; set; } = string.Empty;
-    public string  PriceGroup { get; set; } = string.Empty;
-    public string  TradeSchemeGroup { get; set; } = string.Empty;
-    public string  SalesOperationType { get; set; } = string.Empty;
+    public string PricingMethod { get; set; } = string.Empty;
+    public string PriceGroup { get; set; } = string.Empty;
+    public string TradeSchemeGroup { get; set; } = string.Empty;
+    public string SalesOperationType { get; set; } = string.Empty;
 
     public string RetailerTypeCode { get; set; } = string.Empty;
     public string RetailerClassCode { get; set; } = string.Empty;

@@ -4,5 +4,6 @@ namespace Integration.Application.Interfaces;
 
 public interface ISalesSyncService
 {
-    Task<SalesOrderSyncResultDto> SyncSalesAsync(SalesOrderDto request);
+    Task<SalesOrderSyncResultDto> SyncSalesOrderAsync(SalesOrderRequestDto request);
+    Task<SalesInvoiceResponseDto> SyncSalesInvoiceAsync(SalesInvoiceRequestDto request);
 }

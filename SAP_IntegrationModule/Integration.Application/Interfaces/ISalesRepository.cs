@@ -1,16 +1,18 @@
-﻿namespace Integration.Application.Interfaces;
+﻿using Integration.Application.DTOs;
+using Integration.Domain.Entities;
+
+namespace Integration.Application.Interfaces;
 
 public interface ISalesRepository
 {
-    //Task BeginTransactionAsync();
-    //Task CommitTransactionAsync();
-    //Task RollbackTransactionAsync();
-    //Task<Retailer?> GetByRetailerCodeAsync(string retailerCode, string businessUnit);
-    //Task<GlobalRetailer?> GetGlobalRetailerAsync(string retailerCode);
-    //Task CreateAsync(Retailer retailer);
-    //Task UpdateAsync(Retailer retailer);
-    //Task UpdateGlobalRetailerAsync(Retailer retailer);
-    //Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode);
-    //Task<bool> PostalCodeTerritoryExistsAsync(string postalCode);
-    //Task<List<TerritoryPostalCode>> GetAllTerritoryCodeAsync();
+    Task BeginTransactionAsync();
+    Task CommitTransactionAsync();
+    Task RollbackTransactionAsync();
+    Task<SalesOrderHeader?> GetSfaSalesOrderAsync(DateTime fromDate, string orderComplete);
+    Task<SalesOrderHeader?> SyncSfaSalesOrdersToSapAsync(SalesOrderHeader order);
+    Task<SalesInvoiceResponseDto?> GetSapSalesInvoiceAsync(SalesInvoiceRequestDto salesOrders);
+    Task<bool> UpdateSalesInvoiceInquiryAsync(SalesInvoiceResponseDto request);
+
+    //Task<SalesOrderSyncResultDto?> GetSfaSalesReturnAsync(DateTime fromDate, string orderComplete);
+    //Task<SalesOrderSyncResultDto?> UpdateSalesReturnAsync(SalesOrderRequestDto salesOrders);
 }

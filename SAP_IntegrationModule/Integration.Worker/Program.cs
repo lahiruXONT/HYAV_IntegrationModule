@@ -1,8 +1,11 @@
+using System.Net.Http.Headers;
+using System.Text;
 using Integration.Application.Helpers;
 using Integration.Application.Interfaces;
 using Integration.Application.Services;
 using Integration.Infrastructure.Clients;
 using Integration.Infrastructure.Data;
+using Integration.Infrastructure.Mock;
 using Integration.Infrastructure.Repositories;
 using Integration.Worker;
 using Microsoft.EntityFrameworkCore;
@@ -72,41 +75,91 @@ try
         );
     });
 
-    // --- SAP HTTP Client ---
-    builder.Services.AddHttpClient<ISapClient, SapApiClient>(
-        (serviceProvider, client) =>
-        {
-            var config = serviceProvider.GetRequiredService<IConfiguration>();
-            var baseUrl = config["SapApi:BaseUrl"];
-            var username = config["SapApi:Username"];
-            var password = config["SapApi:Password"];
+    //// --- SAP HTTP Client ---
+    //builder.Services.AddHttpClient<ISapClient, SapApiClient>(
+    //    (serviceProvider, client) =>
+    //    {
+    //        var config = serviceProvider.GetRequiredService<IConfiguration>();
+    //        var baseUrl = config["SapApi:BaseUrl"];
+    //        var username = config["SapApi:Username"];
+    //        var password = config["SapApi:Password"];
 
-            if (
-                string.IsNullOrEmpty(baseUrl)
-                || string.IsNullOrEmpty(username)
-                || string.IsNullOrEmpty(password)
-            )
+    //        if (
+    //            string.IsNullOrEmpty(baseUrl)
+    //            || string.IsNullOrEmpty(username)
+    //            || string.IsNullOrEmpty(password)
+    //        )
+    //        {
+    //            throw new InvalidOperationException("SAP API configuration is incomplete.");
+    //        }
+
+    //        client.BaseAddress = new Uri(baseUrl);
+    //        client.Timeout = TimeSpan.FromSeconds(config.GetValue("SapApi:TimeoutSeconds", 120));
+
+    //        // Basic authentication
+    //        var authToken = Convert.ToBase64String(
+    //            System.Text.Encoding.ASCII.GetBytes($"{username}:{password}")
+    //        );
+    //        client.DefaultRequestHeaders.Authorization =
+    //            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authToken);
+
+    //        // Add default headers
+    //        client.DefaultRequestHeaders.Accept.Add(
+    //            new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json")
+    //        );
+    //        client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+    //    }
+    //);
+
+    // --- SAP Client (Mock or Real) ---
+    var sapMode = builder.Configuration["SapApi:Mode"];
+
+    if (string.Equals(sapMode, "Mock", StringComparison.OrdinalIgnoreCase))
+    {
+        builder.Services.AddScoped<ISapClient, MockSapClient>();
+    }
+    else
+    {
+        builder.Services.AddHttpClient<ISapClient, SapApiClient>(
+            (serviceProvider, client) =>
             {
-                throw new InvalidOperationException("SAP API configuration is incomplete.");
+                var config = serviceProvider.GetRequiredService<IConfiguration>();
+
+                var baseUrl = config["SapApi:BaseUrl"];
+                var username = config["SapApi:Username"];
+                var password = config["SapApi:Password"];
+
+                if (
+                    string.IsNullOrWhiteSpace(baseUrl)
+                    || string.IsNullOrWhiteSpace(username)
+                    || string.IsNullOrWhiteSpace(password)
+                )
+                {
+                    throw new InvalidOperationException("SAP API configuration is incomplete.");
+                }
+
+                client.BaseAddress = new Uri(baseUrl);
+                client.Timeout = TimeSpan.FromSeconds(
+                    config.GetValue("SapApi:TimeoutSeconds", 120)
+                );
+
+                var authToken = Convert.ToBase64String(
+                    Encoding.ASCII.GetBytes($"{username}:{password}")
+                );
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                    "Basic",
+                    authToken
+                );
+
+                client.DefaultRequestHeaders.Accept.Add(
+                    new MediaTypeWithQualityHeaderValue("application/json")
+                );
+
+                client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
             }
-
-            client.BaseAddress = new Uri(baseUrl);
-            client.Timeout = TimeSpan.FromSeconds(config.GetValue("SapApi:TimeoutSeconds", 120));
-
-            // Basic authentication
-            var authToken = Convert.ToBase64String(
-                System.Text.Encoding.ASCII.GetBytes($"{username}:{password}")
-            );
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authToken);
-
-            // Add default headers
-            client.DefaultRequestHeaders.Accept.Add(
-                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json")
-            );
-            client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-        }
-    );
+        );
+    }
 
     // --- Add Helpers ---
     builder.Services.AddScoped<BusinessUnitResolveHelper>();
