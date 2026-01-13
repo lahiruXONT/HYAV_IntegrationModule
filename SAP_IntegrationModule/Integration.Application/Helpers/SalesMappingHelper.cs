@@ -132,6 +132,7 @@ public sealed class SalesMappingHelper
             throw new ValidationExceptionDto(errorMessage);
         }
     }
+
     private DateTime ParseSapDate(string? sapDate)
     {
         if (string.IsNullOrEmpty(sapDate))
