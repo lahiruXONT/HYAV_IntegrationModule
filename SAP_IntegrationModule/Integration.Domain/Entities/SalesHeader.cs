@@ -21,6 +21,9 @@ public abstract class SalesHeaderBase : BaseAuditableEntity
     public string SalesOrganization { get; set; } = string.Empty;
     public string Plant { get; set; } = string.Empty;
     public string Status { get; set; } = "1";
+    public string ERPCustomerOrderRef { get; set; } = string.Empty;
+    public string ProfitCenter { get; set; } = string.Empty;
+    public string JobType { get; set; } = string.Empty;
 }
 
 public sealed class SalesOrderHeader : SalesHeaderBase
@@ -34,8 +37,9 @@ public sealed class SalesOrderHeader : SalesHeaderBase
     public DateTime? IntegratedOn { get; set; }
     public string IntegratedStatus { get; set; } = "0";
 
-    public ICollection<SalesOrderLine> Lines { get; set; } = new List<SalesOrderLine>();
-    public ICollection<SalesOrderDiscount> Discounts { get; set; } = new List<SalesOrderDiscount>();
+    public IReadOnlyCollection<SalesOrderLine> Lines { get; set; } = new List<SalesOrderLine>();
+    public IReadOnlyCollection<SalesOrderDiscount> Discounts { get; set; } =
+        new List<SalesOrderDiscount>();
 }
 
 public sealed class SalesInvoiceHeader : SalesHeaderBase
@@ -45,7 +49,7 @@ public sealed class SalesInvoiceHeader : SalesHeaderBase
     public int OrderNo { get; set; }
     public string DeliveryStatus { get; set; } = "0";
 
-    public ICollection<SalesInvoiceLine> Lines { get; set; } = new List<SalesInvoiceLine>();
-    public ICollection<SalesInvoiceDiscount> Discounts { get; set; } =
+    public IReadOnlyCollection<SalesInvoiceLine> Lines { get; set; } = new List<SalesInvoiceLine>();
+    public IReadOnlyCollection<SalesInvoiceDiscount> Discounts { get; set; } =
         new List<SalesInvoiceDiscount>();
 }

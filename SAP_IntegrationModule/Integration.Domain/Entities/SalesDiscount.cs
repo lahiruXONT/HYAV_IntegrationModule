@@ -1,9 +1,10 @@
 ﻿namespace Integration.Domain.Entities;
 
-public abstract class SalesDiscountBase : BaseAuditableEntity
+public abstract class SalesDiscountBase
 {
     public long RecID { get; set; }
-    public long HeaderRecID { get; set; }
+
+    //public long HeaderRecID { get; set; }
     public int Sequence { get; set; }
     public string BusinessUnit { get; set; } = string.Empty;
     public string TerritoryCode { get; set; } = string.Empty;
@@ -40,6 +41,9 @@ public sealed class SalesOrderDiscount : SalesDiscountBase
     public decimal AllocatedQtyU1 { get; set; }
     public decimal PickQuantityU1 { get; set; }
     public string SpecialDiscountBudgetExceeded { get; set; } = "0";
+
+    // Reference to parent
+    public SalesOrderHeader Header { get; set; } = null!;
 }
 
 public sealed class SalesInvoiceDiscount : SalesDiscountBase
@@ -48,4 +52,7 @@ public sealed class SalesInvoiceDiscount : SalesDiscountBase
     public int InvoiceLineNumber { get; set; }
     public decimal DiscountPerUnit { get; set; }
     public int RebateRequestRecID { get; set; }
+
+    // Reference to parent
+    public SalesInvoiceHeader Header { get; set; } = null!;
 }

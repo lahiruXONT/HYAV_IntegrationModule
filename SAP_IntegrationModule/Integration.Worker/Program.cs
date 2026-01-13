@@ -164,21 +164,25 @@ try
     // --- Add Helpers ---
     builder.Services.AddScoped<BusinessUnitResolveHelper>();
     builder.Services.AddScoped<CustomerMappingHelper>();
-    builder.Services.AddScoped<MaterialMappingHelper>();
+    //builder.Services.AddScoped<MaterialMappingHelper>();
+    builder.Services.AddScoped<SalesMappingHelper>();
 
     // --- Add Repositories ---
     builder.Services.AddScoped<IRetailerRepository, RetailerRepository>();
-    builder.Services.AddScoped<IProductRepository, ProductRepository>();
+    //builder.Services.AddScoped<IProductRepository, ProductRepository>();
+    builder.Services.AddScoped<ISalesRepository, SalesRepository>();
     builder.Services.AddScoped<IBusinessUnitRepository, BusinessUnitRepository>();
     builder.Services.AddScoped<ILogRepository, LogRepository>();
 
     // --- Add Services ---
     builder.Services.AddScoped<ICustomerSyncService, CustomerSyncService>();
-    builder.Services.AddScoped<IMaterialSyncService, MaterialSyncService>();
+    //builder.Services.AddScoped<IMaterialSyncService, MaterialSyncService>();
+    builder.Services.AddScoped<ISalesSyncService, SalesSyncService>();
 
     // --- Add Workers ---
-    builder.Services.AddHostedService<MaterialSyncBackgroundService>();
+    //builder.Services.AddHostedService<MaterialSyncBackgroundService>();
     builder.Services.AddHostedService<CustomerSyncBackgroundService>();
+    builder.Services.AddHostedService<SalesSyncBackgroundService>();
 
     // Register options
     builder.Services.Configure<BackgroundServiceOptions>(
@@ -186,10 +190,16 @@ try
         builder.Configuration.GetSection("BackgroundServices:CustomerSyncBackgroundService")
     );
 
+    //builder.Services.Configure<BackgroundServiceOptions>(
+    //    nameof(MaterialSyncBackgroundService),
+    //    builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService")
+    //);
+
     builder.Services.Configure<BackgroundServiceOptions>(
-        nameof(MaterialSyncBackgroundService),
-        builder.Configuration.GetSection("BackgroundServices:MaterialSyncBackgroundService")
+        nameof(SalesSyncBackgroundService),
+        builder.Configuration.GetSection("BackgroundServices:SalesSyncBackgroundService")
     );
+
     builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
     builder.Services.AddMemoryCache();

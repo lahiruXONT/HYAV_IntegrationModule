@@ -3,7 +3,8 @@
 public abstract class SalesLineBase : BaseAuditableEntity
 {
     public long RecID { get; set; }
-    public long HeaderRecID { get; set; }
+
+    //public long HeaderRecID { get; set; }
     public string ProductCode { get; set; } = string.Empty;
     public decimal U1MovementQuantity { get; set; }
     public decimal Price { get; set; }

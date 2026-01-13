@@ -27,9 +27,10 @@ public class UserDbContext : DbContext
     public DbSet<SalesOrderDiscount> SalesOrderDiscounts { get; set; }
 
     // Sales Invoices
-    public DbSet<SalesInvoiceHeader> SalesInvoiceHeaders { get; set; }
-    public DbSet<SalesInvoiceLine> SalesInvoiceLines { get; set; }
-    public DbSet<SalesInvoiceDiscount> SalesInvoiceDiscounts { get; set; }
+    //public DbSet<SalesInvoiceHeader> SalesInvoiceHeaders { get; set; }
+    //public DbSet<SalesInvoiceLine> SalesInvoiceLines { get; set; }
+
+    //public DbSet<SalesInvoiceDiscount> SalesInvoiceDiscounts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -172,7 +173,7 @@ public class UserDbContext : DbContext
 
         modelBuilder.Entity<SalesOrderHeader>(entity =>
         {
-            entity.ToTable("SalesOrderHeader", "SD");
+            entity.ToTable("SalesOrderHeader", "RD");
 
             entity.HasKey(e => e.RecID);
 
@@ -186,19 +187,19 @@ public class UserDbContext : DbContext
             entity
                 .HasMany(e => e.Lines)
                 .WithOne(l => l.Header)
-                .HasForeignKey(l => l.HeaderRecID)
+                .HasForeignKey(l => l.RecID)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity
                 .HasMany(e => e.Discounts)
-                .WithOne()
-                .HasForeignKey(d => d.HeaderRecID)
+                .WithOne(d => d.Header)
+                .HasForeignKey(d => d.RecID)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SalesOrderLine>(entity =>
         {
-            entity.ToTable("SalesOrderLine", "SD");
+            entity.ToTable("SalesOrderLine", "RD");
 
             entity.HasKey(e => e.RecID);
 
@@ -209,7 +210,7 @@ public class UserDbContext : DbContext
 
         modelBuilder.Entity<SalesOrderDiscount>(entity =>
         {
-            entity.ToTable("SalesOrderDiscount", "SD");
+            entity.ToTable("SalesOrderDiscount", "RD");
 
             entity.HasKey(e => e.RecID);
 
@@ -220,7 +221,7 @@ public class UserDbContext : DbContext
         /*
         modelBuilder.Entity<SalesInvoiceHeader>(entity =>
         {
-            entity.ToTable("SalesInvoiceHeader", "SD");
+            entity.ToTable("SalesInvoiceHeader", "RD");
 
             entity.HasKey(e => e.RecID);
 

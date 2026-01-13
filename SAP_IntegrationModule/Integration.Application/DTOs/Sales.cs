@@ -38,11 +38,13 @@ public sealed class SalesOrderSyncResultDto : SapSalesOrderResponseDTO
 {
     public bool Success { get; set; }
     public int TotalRecords { get; set; }
-    public int NewOrder { get; set; }
-    public int UpdatedOrder { get; set; }
-    public int SkippedOrder { get; set; }
+    public int NewOrders { get; set; }
+    public int UpdatedOrders { get; set; }
+    public int SkippedOrders { get; set; }
+    public int FailedOrders { get; set; }
     public string Message { get; set; } = string.Empty;
     public DateTime SyncDate { get; set; }
+    public long ElapsedMilliseconds { get; set; }
 }
 
 public class SapSalesOrderResponseDTO
@@ -65,4 +67,9 @@ public sealed class SalesInvoiceResponseDto
     /// O - Open, P - Partial processed, C - Completely processed
     public string? Status { get; set; }
     public decimal TotalInvoiceValue { get; set; }
+}
+
+public sealed class XontSalesSyncRequestDto
+{
+    public DateTime Date { get; set; }
 }

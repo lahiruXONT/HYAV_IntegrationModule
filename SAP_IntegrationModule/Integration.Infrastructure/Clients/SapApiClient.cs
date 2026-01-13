@@ -1,6 +1,5 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Text;
 using System.Text.Json;
-using Azure.Core.Pipeline;
 using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -115,5 +114,23 @@ public class SapApiClient : ISapClient
             _logger.LogError(ex, "Error fetching material data from SAP");
             throw new SapApiExceptionDto($"SAP Material API call failed: {ex.Message}", ex);
         }
+    }
+
+    public async Task<SapSalesOrderResponseDTO> SendSalesOrderAsync(SalesOrderRequestDto dto)
+    {
+        var endpoint = "/sap/opu/odata/sap/ZSALES_ORDER_SRV/SalesOrderSet";
+        var content = new StringContent(
+            JsonSerializer.Serialize(dto, _jsonOptions),
+            Encoding.UTF8,
+            "application/json"
+        );
+
+        var response = await _retryPolicy.ExecuteAsync(() =>
+            _httpClient.PostAsync(endpoint, content)
+        );
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<SapSalesOrderResponseDTO>(json, _jsonOptions);
     }
 }

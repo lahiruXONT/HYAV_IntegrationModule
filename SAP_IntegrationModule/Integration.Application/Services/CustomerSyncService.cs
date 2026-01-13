@@ -117,7 +117,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 const int batchSize = 100;
                 var processedGroups = 0;
 
-                await _customerRepository.BeginTransactionAsync();
+                //await _customerRepository.BeginTransactionAsync();
 
                 try
                 {
@@ -137,7 +137,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         }
                     }
 
-                    await _customerRepository.CommitTransactionAsync();
+                    //await _customerRepository.CommitTransactionAsync();
                     await _customerRepository.ClearGeoCacheAsync();
                     result.Success = true;
                     result.Message = BuildSuccessMessage(result);
@@ -161,7 +161,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         groups.Count
                     );
 
-                    await _customerRepository.RollbackTransactionAsync();
+                    //await _customerRepository.RollbackTransactionAsync();
 
                     result.Success = false;
                     result.Message =

@@ -81,7 +81,7 @@ public sealed class MockSapClient : ISapClient
                 {
                     SalesOrganization = "6070", // 4
                     Distributionchannel = "01", // 2
-                    Division = "0067", // 4
+                    Division = "67", // 4
 
                     Material = "MAT-0000000001", // <= 40
                     MaterialDescription = "1L Plastic Bottle",
@@ -105,7 +105,7 @@ public sealed class MockSapClient : ISapClient
                 {
                     SalesOrganization = "6070",
                     Distributionchannel = "01",
-                    Division = "0067",
+                    Division = "67",
 
                     Material = "MAT-0000000002",
                     MaterialDescription = "500ml Glass Bottle",
@@ -127,5 +127,18 @@ public sealed class MockSapClient : ISapClient
                 },
             }
         );
+    }
+
+    public Task<SapSalesOrderResponseDTO> SendSalesOrderAsync(SalesOrderRequestDto dto)
+    {
+        // Instead of calling SAP, just simulate a successful response
+        var mockResponse = new SapSalesOrderResponseDTO
+        {
+            Result = true,
+            Reason = "Order synced successfully",
+            OrderNo = 1234,
+        };
+
+        return Task.FromResult(mockResponse);
     }
 }

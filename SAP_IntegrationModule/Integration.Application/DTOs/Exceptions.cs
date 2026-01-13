@@ -70,3 +70,20 @@ public sealed class MaterialSyncException : Exception
         MaterialCode = materialCode;
     }
 }
+
+public sealed class SalesSyncException : Exception
+{
+    public string OrderNo { get; }
+
+    public SalesSyncException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        OrderNo = string.Empty;
+    }
+
+    public SalesSyncException(string message, string orderNo, Exception innerException)
+        : base(message, innerException)
+    {
+        OrderNo = orderNo;
+    }
+}

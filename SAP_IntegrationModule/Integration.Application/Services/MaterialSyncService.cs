@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using Integration.Application.DTOs;
 using Integration.Application.Helpers;
 using Integration.Application.Interfaces;
@@ -72,7 +68,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
 
                 var materialGroups = sapMaterials.GroupBy(m => new { m.Material }).ToList();
 
-                await _productRepository.BeginTransactionAsync();
+                //await _productRepository.BeginTransactionAsync();
 
                 try
                 {
@@ -81,7 +77,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                         await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
                     }
 
-                    await _productRepository.CommitTransactionAsync();
+                    //await _productRepository.CommitTransactionAsync();
 
                     result.Success = true;
                     result.Message =
@@ -99,7 +95,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                         "Error during material processing in sync , rolling back transaction"
                     );
 
-                    await _productRepository.RollbackTransactionAsync();
+                    //await _productRepository.RollbackTransactionAsync();
 
                     result.Success = false;
                     result.Message = $"Sync  failed and rolled back: {ex.Message}";
