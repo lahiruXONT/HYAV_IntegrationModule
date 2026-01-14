@@ -1,23 +1,27 @@
 ﻿using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
-using Integration.Application.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Integration.Api.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize]
+//[Authorize]
 public sealed class SyncController : ControllerBase
 {
     private readonly ICustomerSyncService _customerSyncService;
     private readonly IMaterialSyncService _materialSyncService;
+    private readonly IStockSyncService _stockSyncService;
 
-    public SyncController(ICustomerSyncService customerSync, IMaterialSyncService materialSync)
+    public SyncController(
+        ICustomerSyncService customerSync,
+        IMaterialSyncService materialSync,
+        IStockSyncService stockSyncService
+    )
     {
         _customerSyncService = customerSync;
         _materialSyncService = materialSync;
+        _stockSyncService = stockSyncService;
     }
 
     [HttpPost("customer")]
@@ -35,6 +39,15 @@ public sealed class SyncController : ControllerBase
     )
     {
         var result = await _materialSyncService.SyncMaterialsFromSapAsync(request);
+        return Ok(result);
+    }
+
+    [HttpPost("stockout")]
+    public async Task<ActionResult<StockOutSapResponseDto>> GetStockOutFromSap(
+        [FromBody] StockOutSapRequestDto request
+    )
+    {
+        var result = await _stockSyncService.SyncStockOutFromSapAsync(request);
         return Ok(result);
     }
 

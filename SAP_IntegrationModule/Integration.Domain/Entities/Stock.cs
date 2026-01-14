@@ -42,7 +42,7 @@ public sealed class StockTransaction : BaseAuditableEntity
 
 public sealed class StockRecord : BaseAuditableEntity
 {
-    public long RecID { get; set; }
+    public long RecId { get; set; }
     public string BusinessUnit { get; set; } = string.Empty;
     public string TerritoryCode { get; set; } = string.Empty;
     public string WarehouseCode { get; set; } = string.Empty;
@@ -65,7 +65,7 @@ public sealed class StockRecord : BaseAuditableEntity
 
 public sealed class TerritoryProduct : BaseAuditableEntity
 {
-    public int RecID { get; set; }
+    public int RecId { get; set; }
     public string BusinessUnit { get; set; } = string.Empty;
     public string TerritoryCode { get; set; } = string.Empty;
     public string ProductCode { get; set; } = string.Empty;
@@ -77,7 +77,7 @@ public sealed class TerritoryProduct : BaseAuditableEntity
 
 public sealed class CurrentSerialBatch : BaseAuditableEntity
 {
-    public long RecID { get; set; }
+    public long RecId { get; set; }
     public string BusinessUnit { get; set; } = string.Empty;
     public string ProductCode { get; set; } = string.Empty;
     public string LotNumber { get; set; } = string.Empty;

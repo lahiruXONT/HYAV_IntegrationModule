@@ -34,7 +34,7 @@ public sealed class SalesOrderItemDto
     public string ReferenceNumber { get; set; } = string.Empty;
 }
 
-public sealed class SalesOrderSyncResultDto : SapSalesOrderResponseDTO
+public sealed class SalesOrderSyncResultDto : SapSalesOrderResponseDto
 {
     public bool Success { get; set; }
     public int TotalRecords { get; set; }
@@ -47,7 +47,7 @@ public sealed class SalesOrderSyncResultDto : SapSalesOrderResponseDTO
     public long ElapsedMilliseconds { get; set; }
 }
 
-public class SapSalesOrderResponseDTO
+public class SapSalesOrderResponseDto
 {
     public bool Result { get; set; }
     public string Reason { get; set; } = string.Empty;

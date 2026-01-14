@@ -116,7 +116,7 @@ public class SapApiClient : ISapClient
         }
     }
 
-    public async Task<SapSalesOrderResponseDTO> SendSalesOrderAsync(SalesOrderRequestDto dto)
+    public async Task<SapSalesOrderResponseDto> SendSalesOrderAsync(SalesOrderRequestDto dto)
     {
         var endpoint = "/sap/opu/odata/sap/ZSALES_ORDER_SRV/SalesOrderSet";
         var content = new StringContent(
@@ -131,6 +131,26 @@ public class SapApiClient : ISapClient
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<SapSalesOrderResponseDTO>(json, _jsonOptions);
+        return JsonSerializer.Deserialize<SapSalesOrderResponseDto>(json, _jsonOptions);
+    }
+
+    public async Task<StockOutSapResponseDto> GetStockOutTransactionDetails(
+        StockOutSapRequestDto dto
+    )
+    {
+        var endpoint = "/sap/opu/odata/sap/StockOutSet";
+        var content = new StringContent(
+            JsonSerializer.Serialize(dto, _jsonOptions),
+            Encoding.UTF8,
+            "application/json"
+        );
+
+        var response = await _retryPolicy.ExecuteAsync(() =>
+            _httpClient.PostAsync(endpoint, content)
+        );
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<StockOutSapResponseDto>(json, _jsonOptions);
     }
 }

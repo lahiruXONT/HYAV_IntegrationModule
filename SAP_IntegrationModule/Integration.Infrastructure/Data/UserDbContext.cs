@@ -32,6 +32,9 @@ public class UserDbContext : DbContext
 
     //public DbSet<SalesInvoiceDiscount> SalesInvoiceDiscounts { get; set; }
 
+    //Stock
+    public DbSet<StockTransaction> StockTransactions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         if (modelBuilder == null)

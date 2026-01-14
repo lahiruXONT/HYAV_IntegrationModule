@@ -129,10 +129,10 @@ public sealed class MockSapClient : ISapClient
         );
     }
 
-    public Task<SapSalesOrderResponseDTO> SendSalesOrderAsync(SalesOrderRequestDto dto)
+    public Task<SapSalesOrderResponseDto> SendSalesOrderAsync(SalesOrderRequestDto dto)
     {
         // Instead of calling SAP, just simulate a successful response
-        var mockResponse = new SapSalesOrderResponseDTO
+        var mockResponse = new SapSalesOrderResponseDto
         {
             Result = true,
             Reason = "Order synced successfully",
@@ -140,5 +140,28 @@ public sealed class MockSapClient : ISapClient
         };
 
         return Task.FromResult(mockResponse);
+    }
+
+    public async Task<StockOutSapResponseDto> GetStockOutTransactionDetails(
+        StockOutSapRequestDto dto
+    )
+    {
+        // Simulate async delay to mimic real API call
+        await Task.Delay(100);
+
+        // Return hardcoded test data
+        return new StockOutSapResponseDto
+        {
+            Division = "67", // Company code
+            Plant = "PL01", // Plant
+            StorageLocation = "ST01", // Storage location
+            Material = "MAT-123456789", // Material
+            Quantity = 150.75m, // Quantity
+            ReceivingBatch = "RB20260114", // Receiving batch
+            BatchExpiryDate = new DateTime(2026, 12, 31), // SLED/BBD
+            PostingDate = new DateTime(2026, 01, 14), // Posting date
+            EnteredOnAt = DateTime.UtcNow, // Last updated date/time
+            MaterialDocumentNumber = dto.MaterialDocumentNumber ?? "DOC987654",
+        };
     }
 }

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Integration.Application.Interfaces;
+﻿using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
 using Integration.Infrastructure.Data;
 using Microsoft.Extensions.Logging;
@@ -78,7 +73,8 @@ public class LogRepository : ILogRepository
                 ErrorType = errorType,
                 Error = error, //Nazeer check this we may need to increase the size
                 RequestLogID = requestLogId,
-                UpdatedOn = DateTime.Now,
+                CreatedOn = DateTime.Now,
+                CreatedBy = username,
             };
 
             await _context.ErrorLogs.AddAsync(errorLog);

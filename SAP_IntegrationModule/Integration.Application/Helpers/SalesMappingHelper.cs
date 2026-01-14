@@ -37,14 +37,14 @@ public sealed class SalesMappingHelper
                 SalesOffice = order?.TerritoryCode?.Trim() ?? string.Empty,
                 SalesGroup = order?.SalesCategoryCode?.Trim() ?? string.Empty,
                 CustomerReference = order?.CustomerOrderReference?.Trim() ?? string.Empty,
-                CustomerReferenceDate = ParseSapDate(order.OrderDate.ToString().Trim()),
+                CustomerReferenceDate = ParseSapDate(order?.OrderDate.ToString().Trim()),
                 SoldToParty = order?.RetailerCode?.Trim() ?? string.Empty,
                 YourReference = order?.OrderNo.ToString()?.Trim() ?? string.Empty,
             };
 
             var salesOrderRequestItemsDto = new List<SalesOrderItemDto>();
 
-            foreach (var line in order.Lines ?? Enumerable.Empty<SalesOrderLine>())
+            foreach (var line in order?.Lines ?? Enumerable.Empty<SalesOrderLine>())
             {
                 var item = new SalesOrderItemDto
                 {
