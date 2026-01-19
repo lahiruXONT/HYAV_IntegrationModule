@@ -156,6 +156,7 @@ public class ReceiptSyncService : IReceiptSyncService
                 {
                     receipt.IntegratedStatus = "1";
                     receipt.IntegratedOn = DateTime.Now;
+                    receipt.SAPDocumentNumber = sapResult.DOCUMENT_NUMBER;
                     await _transactionsRepository.UpdateTransactionAsync(receipt);
                 }
             }
