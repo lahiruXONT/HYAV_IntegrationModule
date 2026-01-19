@@ -12,16 +12,19 @@ public sealed class SyncController : ControllerBase
     private readonly ICustomerSyncService _customerSyncService;
     private readonly IMaterialSyncService _materialSyncService;
     private readonly IStockSyncService _stockSyncService;
+    private readonly IReceiptSyncService _receiptSyncService;
 
     public SyncController(
         ICustomerSyncService customerSync,
         IMaterialSyncService materialSync,
-        IStockSyncService stockSyncService
+        IStockSyncService stockSyncService,
+        IReceiptSyncService receiptSyncService
     )
     {
         _customerSyncService = customerSync;
         _materialSyncService = materialSync;
         _stockSyncService = stockSyncService;
+        _receiptSyncService = receiptSyncService;
     }
 
     [HttpPost("customer")]
@@ -48,6 +51,15 @@ public sealed class SyncController : ControllerBase
     )
     {
         var result = await _stockSyncService.SyncStockOutFromSapAsync(request);
+        return Ok(result);
+    }
+
+    [HttpPost("receipt")]
+    public async Task<ActionResult<ReceiptSyncResultDto>> SyncReceiptToSAP(
+        [FromBody] XontReceiptSyncRequestDto request
+    )
+    {
+        var result = await _receiptSyncService.SyncReceiptToSapAsync(request);
         return Ok(result);
     }
 

@@ -8,18 +8,28 @@ public class UserDbContext : DbContext
     public UserDbContext(DbContextOptions<UserDbContext> options)
         : base(options) { }
 
+    //API logs users
     public DbSet<User> Users { get; set; }
     public DbSet<UserSession> UserSessions { get; set; }
     public DbSet<RequestLog> RequestLogs { get; set; }
     public DbSet<ErrorLog> ErrorLogs { get; set; }
+
+    //retailers
     public DbSet<GlobalRetailer> GlobalRetailers { get; set; }
-    public DbSet<GlobalProduct> GlobalProducts { get; set; }
     public DbSet<TerritoryPostalCode> TerritoryPostalCodes { get; set; }
     public DbSet<Retailer> Retailers { get; set; }
+    public DbSet<RetailerClassification> RetailerClassifications { get; set; }
+
+    //products
+    public DbSet<GlobalProduct> GlobalProducts { get; set; }
     public DbSet<Product> Products { get; set; }
+
+    //other master data
     public DbSet<MasterDefinitionValue> MasterDefinitionValues { get; set; }
     public DbSet<MasterDefinition> MasterDefinitions { get; set; }
-    public DbSet<RetailerClassification> RetailerClassifications { get; set; }
+
+    //transactions
+    public DbSet<Transaction> Transactions { get; set; }
 
     // Sales Orders
     public DbSet<SalesOrderHeader> SalesOrderHeaders { get; set; }

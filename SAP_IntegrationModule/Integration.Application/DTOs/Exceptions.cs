@@ -87,3 +87,20 @@ public sealed class SalesSyncException : Exception
         OrderNo = orderNo;
     }
 }
+
+public sealed class ReceiptSyncException : Exception
+{
+    public string DocumentNumberSystem { get; }
+
+    public ReceiptSyncException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        DocumentNumberSystem = string.Empty;
+    }
+
+    public ReceiptSyncException(string message, string receiptNo, Exception innerException)
+        : base(message, innerException)
+    {
+        DocumentNumberSystem = receiptNo;
+    }
+}
