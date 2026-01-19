@@ -187,6 +187,7 @@ builder.Services.AddScoped<MaterialMappingHelper>();
 builder.Services.AddScoped<BusinessUnitResolveHelper>();
 builder.Services.AddScoped<PasswordHashHelper>();
 builder.Services.AddScoped<StockMappingHelper>();
+builder.Services.AddScoped<ReceiptMappingHelper>();
 
 // --- Dependency Injection for repositories ---
 builder.Services.AddScoped<IBusinessUnitRepository, BusinessUnitRepository>();
@@ -195,12 +196,14 @@ builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IRetailerRepository, RetailerRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IStockRepository, StockRepository>();
+builder.Services.AddScoped<ITransactionsRepository, TransactionsRepository>();
 
 // --- Dependency Injection for services ---
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerSyncService, CustomerSyncService>();
 builder.Services.AddScoped<IMaterialSyncService, MaterialSyncService>();
 builder.Services.AddScoped<IStockSyncService, StockSyncService>();
+builder.Services.AddScoped<IReceiptSyncService, ReceiptSyncService>();
 
 builder.Services.AddMemoryCache();
 

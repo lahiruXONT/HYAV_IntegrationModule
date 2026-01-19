@@ -45,28 +45,25 @@ public sealed class CustomerMappingHelper
                 RetailerCode = sapCustomer?.Customer?.Trim() ?? string.Empty,
                 RetailerName = sapCustomer?.CustomerName?.Trim() ?? string.Empty,
                 AddressLine1 = sapCustomer?.HouseNo?.Trim() ?? string.Empty,
-                AddressLine2 = sapCustomer?.Street?.Trim() ?? string.Empty,
+                SAPAddressLine2 = sapCustomer?.Street?.Trim() ?? string.Empty,
                 AddressLine3 = sapCustomer?.Street2?.Trim() ?? string.Empty,
                 AddressLine4 = sapCustomer?.Street3?.Trim() ?? string.Empty,
                 AddressLine5 = sapCustomer?.City?.Trim() ?? string.Empty,
                 TelephoneNumber = sapCustomer?.Telephone?.Trim() ?? string.Empty,
                 FaxNumber = sapCustomer?.Fax?.Trim() ?? string.Empty,
-                EmailAddress = sapCustomer?.Email?.Trim() ?? string.Empty,
-                SettlementTermsCode = sapCustomer?.PaymentTerm?.Trim() ?? string.Empty,
+                SAPEmailAddress = sapCustomer?.Email?.Trim() ?? string.Empty,
+                SAPSettlementTermsCode = sapCustomer?.PaymentTerm?.Trim() ?? string.Empty,
                 CreditLimit = sapCustomer?.CreditLimit ?? 0m,
-                VatRegistrationNo = sapCustomer?.VATRegistrationNumber?.Trim() ?? string.Empty,
+                SAPVatRegistrationNo = sapCustomer?.VATRegistrationNumber?.Trim() ?? string.Empty,
                 BusinessUnit = businessUnit ?? string.Empty,
                 TerritoryCode = territory?.TerritoryCode?.Trim() ?? string.Empty,
-
-                //Division =  sapCustomer.Division?.Trim(),
-                //SalesOrganization = sapCustomer.SalesOrganization?.Trim(),
                 DistributionChannel = sapCustomer?.Distributionchannel ?? string.Empty,
 
                 // Default values
                 PricingMethod = string.Empty,
-                PriceGroup = string.Empty,
-                TradeSchemeGroup = string.Empty,
-                SalesOperationType = string.Empty,
+                PriceGroup = string.Empty, //need to add default value
+                TradeSchemeGroup = string.Empty, //need to add default value
+                SalesOperationType = "2",
 
                 TelephoneNumberSys = string.Empty,
                 ContactName = string.Empty,
@@ -209,11 +206,6 @@ public sealed class CustomerMappingHelper
 
         bool retailerChanged =
             !string.Equals(
-                existing.RetailerCode?.Trim(),
-                updated.RetailerCode?.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            || !string.Equals(
                 existing.RetailerName?.Trim(),
                 updated.RetailerName?.Trim(),
                 StringComparison.OrdinalIgnoreCase
@@ -224,8 +216,8 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
-                existing.AddressLine2?.Trim(),
-                updated.AddressLine2?.Trim(),
+                existing.SAPAddressLine2?.Trim(),
+                updated.SAPAddressLine2?.Trim(),
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
@@ -254,13 +246,13 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
-                existing.EmailAddress?.Trim(),
-                updated.EmailAddress?.Trim(),
+                existing.SAPEmailAddress?.Trim(),
+                updated.SAPEmailAddress?.Trim(),
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
-                existing.SettlementTermsCode?.Trim(),
-                updated.SettlementTermsCode?.Trim(),
+                existing.SAPSettlementTermsCode?.Trim(),
+                updated.SAPSettlementTermsCode?.Trim(),
                 StringComparison.OrdinalIgnoreCase
             )
             || existing.CreditLimit != updated.CreditLimit
@@ -275,8 +267,8 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
-                existing.VatRegistrationNo?.Trim(),
-                updated.VatRegistrationNo?.Trim(),
+                existing.SAPVatRegistrationNo?.Trim(),
+                updated.SAPVatRegistrationNo?.Trim(),
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
@@ -329,18 +321,18 @@ public sealed class CustomerMappingHelper
 
         existing.RetailerName = updated.RetailerName;
         existing.AddressLine1 = updated.AddressLine1;
-        existing.AddressLine2 = updated.AddressLine2;
+        existing.SAPAddressLine2 = updated.SAPAddressLine2;
         existing.AddressLine3 = updated.AddressLine3;
         existing.AddressLine4 = updated.AddressLine4;
         existing.AddressLine5 = updated.AddressLine5;
         existing.TelephoneNumber = updated.TelephoneNumber;
         existing.FaxNumber = updated.FaxNumber;
-        existing.EmailAddress = updated.EmailAddress;
-        existing.SettlementTermsCode = updated.SettlementTermsCode;
+        existing.SAPEmailAddress = updated.SAPEmailAddress;
+        existing.SAPSettlementTermsCode = updated.SAPSettlementTermsCode;
         existing.CreditLimit = updated.CreditLimit;
         existing.TerritoryCode = updated.TerritoryCode;
         existing.DistributionChannel = updated.DistributionChannel;
-        existing.VatRegistrationNo = updated.VatRegistrationNo;
+        existing.SAPVatRegistrationNo = updated.SAPVatRegistrationNo;
         existing.VatCode = updated.VatCode;
         existing.VatStatus = updated.VatStatus;
         existing.RetailerTypeCode = updated.RetailerTypeCode;
@@ -367,16 +359,17 @@ public sealed class CustomerMappingHelper
                 RetailerCode = sapCustomer?.Customer?.Trim() ?? string.Empty,
                 RetailerName = sapCustomer?.CustomerName?.Trim() ?? string.Empty,
                 AddressLine1 = sapCustomer?.HouseNo?.Trim() ?? string.Empty,
-                AddressLine2 = sapCustomer?.Street?.Trim() ?? string.Empty,
+                SAPAddressLine2 = sapCustomer?.Street?.Trim() ?? string.Empty,
                 AddressLine3 = sapCustomer?.Street2?.Trim() ?? string.Empty,
                 AddressLine4 = sapCustomer?.Street3?.Trim() ?? string.Empty,
                 AddressLine5 = sapCustomer?.City?.Trim() ?? string.Empty,
                 TelephoneNumber = sapCustomer?.Telephone?.Trim() ?? string.Empty,
                 FaxNumber = sapCustomer?.Fax?.Trim() ?? string.Empty,
-                EmailAddress = sapCustomer?.Email?.Trim() ?? string.Empty,
-                // Default values
+                SAPEmailAddress = sapCustomer?.Email?.Trim() ?? string.Empty,
 
+                // Default values
                 TelephoneNumberSys = string.Empty,
+
                 PostCode = "0000",
                 CurrencyCode = "LKR",
                 CurrencyProcessingRequired = "1",
@@ -409,11 +402,6 @@ public sealed class CustomerMappingHelper
             throw new ArgumentNullException(nameof(updated));
 
         return !string.Equals(
-                existing.RetailerCode?.Trim(),
-                updated.RetailerCode?.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            || !string.Equals(
                 existing.RetailerName?.Trim(),
                 updated.RetailerName?.Trim(),
                 StringComparison.OrdinalIgnoreCase
@@ -424,8 +412,8 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
-                existing.AddressLine2?.Trim(),
-                updated.AddressLine2?.Trim(),
+                existing.SAPAddressLine2?.Trim(),
+                updated.SAPAddressLine2?.Trim(),
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
@@ -454,8 +442,8 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
-                existing.EmailAddress?.Trim(),
-                updated.EmailAddress?.Trim(),
+                existing.SAPEmailAddress?.Trim(),
+                updated.SAPEmailAddress?.Trim(),
                 StringComparison.OrdinalIgnoreCase
             );
     }
@@ -469,13 +457,13 @@ public sealed class CustomerMappingHelper
 
         existing.RetailerName = updated.RetailerName;
         existing.AddressLine1 = updated.AddressLine1;
-        existing.AddressLine2 = updated.AddressLine2;
+        existing.SAPAddressLine2 = updated.SAPAddressLine2;
         existing.AddressLine3 = updated.AddressLine3;
         existing.AddressLine4 = updated.AddressLine4;
         existing.AddressLine5 = updated.AddressLine5;
         existing.TelephoneNumber = updated.TelephoneNumber;
         existing.FaxNumber = updated.FaxNumber;
-        existing.EmailAddress = updated.EmailAddress;
+        existing.SAPEmailAddress = updated.SAPEmailAddress;
 
         existing.UpdatedOn = DateTime.Now;
         existing.UpdatedBy = "SAP_SYNC";

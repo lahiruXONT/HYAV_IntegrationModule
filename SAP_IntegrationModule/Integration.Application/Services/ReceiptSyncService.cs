@@ -156,7 +156,16 @@ public class ReceiptSyncService : IReceiptSyncService
                 {
                     receipt.IntegratedStatus = "1";
                     receipt.IntegratedOn = DateTime.Now;
+                    receipt.SAPDocumentNumber = sapResult.DOCUMENT_NUMBER;
                     await _transactionsRepository.UpdateTransactionAsync(receipt);
+                }
+                else
+                {
+                    _logger.LogError(
+                        "Error processing receipt {number} : {sapMessage}",
+                        receipt.DocumentNumberSystem,
+                        sapResult.E_REASON
+                    );
                 }
             }
             catch (Exception ex)

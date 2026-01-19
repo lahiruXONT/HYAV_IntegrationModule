@@ -40,9 +40,4 @@ public sealed class Product : BaseAuditableEntity
     public string TaxGroupValue { get; set; } = string.Empty;
 
     public string BusinessUnit { get; set; } = string.Empty;
-    //public string SalesOrganization { get; set; } = string.Empty;
-    //public string DistributionChannel { get; set; } = string.Empty;
-    //public string Division { get; set; } = string.Empty;
-
-    //need to get specific info
 }
