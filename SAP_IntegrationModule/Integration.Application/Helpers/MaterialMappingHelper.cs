@@ -52,11 +52,7 @@ public sealed class MaterialMappingHelper
                 BatchProcessingFlag = MapBatchFlag(sapMaterial.BatchControlFlag),
                 NonStockItemFlag = MapNonStockFlag(sapMaterial.stockproductupdate),
 
-                // Business mappings
                 BusinessUnit = businessUnit,
-                //SalesOrganization = sapMaterial.SalesOrganization?.Trim(),
-                //DistributionChannel = sapMaterial.Distributionchannel?.Trim(),
-                //Division = sapMaterial.Division?.Trim(),
 
                 // Default values
                 //SortSequence = 0,
@@ -75,6 +71,7 @@ public sealed class MaterialMappingHelper
                 BatchControlPrice = "0",
                 TaxGroupCode = "VAT",
                 TaxGroupValue = "V1",
+                Description2 = string.Empty,
 
                 // Timestamps
                 CreatedOn = DateTime.Now,
@@ -143,6 +140,7 @@ public sealed class MaterialMappingHelper
                 BatchControlPrice = "0",
                 TaxGroupCode = "VAT",
                 TaxGroupValue = "V1",
+                Description2 = string.Empty,
 
                 // Timestamps
                 CreatedOn = DateTime.Now,
@@ -192,7 +190,9 @@ public sealed class MaterialMappingHelper
             )
         )
         {
-            errors.Add($"Division '{sapMaterial.Division}' not found ");
+            errors.Add(
+                $"Business unit not found for SalesOrg: '{sapMaterial.SalesOrganization}' Division '{sapMaterial.Division}' not found "
+            );
         }
         if (errors.Any())
         {
@@ -209,7 +209,6 @@ public sealed class MaterialMappingHelper
             throw new ArgumentNullException(nameof(updated));
 
         return existing.Description != updated.Description
-            || existing.Description2 != updated.Description2
             || existing.ProductGroup != updated.ProductGroup
             || existing.AlternateSearch != updated.AlternateSearch
             || existing.StockCategory != updated.StockCategory
@@ -218,23 +217,7 @@ public sealed class MaterialMappingHelper
             || existing.UOM2 != updated.UOM2
             || existing.ConversionFactor != updated.ConversionFactor
             || existing.BatchProcessingFlag != updated.BatchProcessingFlag
-            || existing.NonStockItemFlag != updated.NonStockItemFlag
-            ||
-            //existing.SalesOrganization != updated.SalesOrganization ||
-            //existing.DistributionChannel != updated.DistributionChannel ||
-            //existing.Division != updated.Division
-            existing.SMMachineType != updated.SMMachineType
-            || existing.SMPlatformSize != updated.SMPlatformSize
-            || existing.SMCapacity != updated.SMCapacity
-            || existing.SMOperatingEnvironment != updated.SMOperatingEnvironment
-            || existing.StampingPeriod != updated.StampingPeriod
-            || existing.WarrantyPeriod != updated.WarrantyPeriod
-            || existing.Status != updated.Status
-            || existing.FinishedProduct != updated.FinishedProduct
-            || existing.SalableFlag != updated.SalableFlag
-            || existing.BatchControlPrice != updated.BatchControlPrice
-            || existing.TaxGroupCode != updated.TaxGroupCode
-            || existing.TaxGroupValue != updated.TaxGroupValue;
+            || existing.NonStockItemFlag != updated.NonStockItemFlag;
     }
 
     public bool HasGlobalMaterialChanges(GlobalProduct existing, GlobalProduct updated)
@@ -245,7 +228,6 @@ public sealed class MaterialMappingHelper
             throw new ArgumentNullException(nameof(updated));
 
         return existing.Description != updated.Description
-            || existing.Description2 != updated.Description2
             || existing.ProductGroup != updated.ProductGroup
             || existing.AlternateSearch != updated.AlternateSearch
             || existing.StockCategory != updated.StockCategory
@@ -254,19 +236,7 @@ public sealed class MaterialMappingHelper
             || existing.UOM2 != updated.UOM2
             || existing.ConversionFactor != updated.ConversionFactor
             || existing.BatchProcessingFlag != updated.BatchProcessingFlag
-            || existing.NonStockItemFlag != updated.NonStockItemFlag
-            || existing.SMMachineType != updated.SMMachineType
-            || existing.SMPlatformSize != updated.SMPlatformSize
-            || existing.SMCapacity != updated.SMCapacity
-            || existing.SMOperatingEnvironment != updated.SMOperatingEnvironment
-            || existing.StampingPeriod != updated.StampingPeriod
-            || existing.WarrantyPeriod != updated.WarrantyPeriod
-            || existing.Status != updated.Status
-            || existing.FinishedProduct != updated.FinishedProduct
-            || existing.SalableFlag != updated.SalableFlag
-            || existing.BatchControlPrice != updated.BatchControlPrice
-            || existing.TaxGroupCode != updated.TaxGroupCode
-            || existing.TaxGroupValue != updated.TaxGroupValue;
+            || existing.NonStockItemFlag != updated.NonStockItemFlag;
     }
 
     public void UpdateMaterial(Product existing, Product updated)
@@ -277,7 +247,6 @@ public sealed class MaterialMappingHelper
             throw new ArgumentNullException(nameof(updated));
 
         existing.Description = updated.Description;
-        existing.Description2 = updated.Description2;
         existing.ProductGroup = updated.ProductGroup;
         existing.AlternateSearch = updated.AlternateSearch;
         existing.StockCategory = updated.StockCategory;
@@ -287,21 +256,6 @@ public sealed class MaterialMappingHelper
         existing.ConversionFactor = updated.ConversionFactor;
         existing.BatchProcessingFlag = updated.BatchProcessingFlag;
         existing.NonStockItemFlag = updated.NonStockItemFlag;
-        //existing.SalesOrganization = updated.SalesOrganization;
-        //existing.DistributionChannel = updated.DistributionChannel;
-        //existing.Division = updated.Division;
-        existing.SMMachineType = updated.SMMachineType;
-        existing.SMPlatformSize = updated.SMPlatformSize;
-        existing.SMCapacity = updated.SMCapacity;
-        existing.SMOperatingEnvironment = updated.SMOperatingEnvironment;
-        existing.StampingPeriod = updated.StampingPeriod;
-        existing.WarrantyPeriod = updated.WarrantyPeriod;
-        existing.Status = updated.Status;
-        existing.FinishedProduct = updated.FinishedProduct;
-        existing.SalableFlag = updated.SalableFlag;
-        existing.BatchControlPrice = updated.BatchControlPrice;
-        existing.TaxGroupCode = updated.TaxGroupCode;
-        existing.TaxGroupValue = updated.TaxGroupValue;
 
         existing.UpdatedOn = DateTime.Now;
         existing.UpdatedBy = "SAP_SYNC";
@@ -315,7 +269,6 @@ public sealed class MaterialMappingHelper
             throw new ArgumentNullException(nameof(updated));
 
         existing.Description = updated.Description;
-        existing.Description2 = updated.Description2;
         existing.ProductGroup = updated.ProductGroup;
         existing.AlternateSearch = updated.AlternateSearch;
         existing.StockCategory = updated.StockCategory;
@@ -325,21 +278,6 @@ public sealed class MaterialMappingHelper
         existing.ConversionFactor = updated.ConversionFactor;
         existing.BatchProcessingFlag = updated.BatchProcessingFlag;
         existing.NonStockItemFlag = updated.NonStockItemFlag;
-        //existing.SalesOrganization = updated.SalesOrganization;
-        //existing.DistributionChannel = updated.DistributionChannel;
-        //existing.Division = updated.Division;
-        existing.SMMachineType = updated.SMMachineType;
-        existing.SMPlatformSize = updated.SMPlatformSize;
-        existing.SMCapacity = updated.SMCapacity;
-        existing.SMOperatingEnvironment = updated.SMOperatingEnvironment;
-        existing.StampingPeriod = updated.StampingPeriod;
-        existing.WarrantyPeriod = updated.WarrantyPeriod;
-        existing.Status = updated.Status;
-        existing.FinishedProduct = updated.FinishedProduct;
-        existing.SalableFlag = updated.SalableFlag;
-        existing.BatchControlPrice = updated.BatchControlPrice;
-        existing.TaxGroupCode = updated.TaxGroupCode;
-        existing.TaxGroupValue = updated.TaxGroupValue;
 
         existing.UpdatedOn = DateTime.Now;
         existing.UpdatedBy = "SAP_SYNC";

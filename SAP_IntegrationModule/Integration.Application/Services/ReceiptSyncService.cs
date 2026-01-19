@@ -162,10 +162,10 @@ public class ReceiptSyncService : IReceiptSyncService
                 else
                 {
                     _logger.LogError(
-                    "Error processing receipt {number} : {sapMessage}",
-                    receipt.DocumentNumberSystem,sapResult.E_REASON
-                );
-
+                        "Error processing receipt {number} : {sapMessage}",
+                        receipt.DocumentNumberSystem,
+                        sapResult.E_REASON
+                    );
                 }
             }
             catch (Exception ex)

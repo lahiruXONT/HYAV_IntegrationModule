@@ -10,7 +10,7 @@ public sealed class Retailer : BaseAuditableEntity
     public string RetailerCode { get; set; } = string.Empty;
     public string? RetailerName { get; set; }
     public string AddressLine1 { get; set; } = string.Empty;
-    public string AddressLine2 { get; set; } = string.Empty;
+    public string SAPAddressLine2 { get; set; } = string.Empty;
     public string AddressLine3 { get; set; } = string.Empty;
     public string AddressLine4 { get; set; } = string.Empty;
     public string AddressLine5 { get; set; } = string.Empty;
@@ -19,17 +19,13 @@ public sealed class Retailer : BaseAuditableEntity
     public string TelephoneNumber { get; set; } = string.Empty;
     public string TelephoneNumberSys { get; set; } = string.Empty;
     public string FaxNumber { get; set; } = string.Empty;
-    public string EmailAddress { get; set; } = string.Empty;
+    public string SAPEmailAddress { get; set; } = string.Empty;
     public string CurrencyCode { get; set; } = string.Empty;
     public string CurrencyProcessingRequired { get; set; } = string.Empty;
 
     public string BusinessUnit { get; set; } = string.Empty;
-
-    //public string SalesOrganization { get; set; } = string.Empty;
     public string DistributionChannel { get; set; } = string.Empty;
-
-    //public string Division { get; set; } = string.Empty;
-    public string SettlementTermsCode { get; set; } = string.Empty;
+    public string SAPSettlementTermsCode { get; set; } = string.Empty;
     public string PaymentMethodCode { get; set; } = string.Empty;
 
     public string? ContactName { get; set; }
@@ -38,7 +34,7 @@ public sealed class Retailer : BaseAuditableEntity
 
     public string VatStatus { get; set; } = string.Empty;
     public string VatCode { get; set; } = string.Empty;
-    public string VatRegistrationNo { get; set; } = string.Empty;
+    public string SAPVatRegistrationNo { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 
     public string PricingMethod { get; set; } = string.Empty;
