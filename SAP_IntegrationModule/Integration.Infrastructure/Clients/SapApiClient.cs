@@ -153,4 +153,34 @@ public class SapApiClient : ISapClient
         var json = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<StockOutSapResponseDto>(json, _jsonOptions);
     }
+
+    public async Task<SAPReceiptResponseDto> SendReceiptAsync(ReceiptRequestDto request)
+    {
+        try
+        {
+            var content = new StringContent(
+                JsonSerializer.Serialize(request, _jsonOptions),
+                Encoding.UTF8,
+                "application/json"
+            );
+            var endpoint = $"/sap/opu/odata/sap/ZReceipt/ReceiptSet";
+            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var sapResponse = JsonSerializer.Deserialize<SapODataResponse<SAPReceiptResponseDto>>(
+                json,
+                _jsonOptions
+            );
+
+            return sapResponse.D.Results.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending receipt data to SAP");
+            throw new SapApiExceptionDto($"SAP receipt API call failed: {ex.Message}", ex);
+        }
+    }
 }

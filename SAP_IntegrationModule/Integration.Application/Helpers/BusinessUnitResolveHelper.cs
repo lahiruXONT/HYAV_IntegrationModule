@@ -1,4 +1,5 @@
 ﻿using Integration.Application.Interfaces;
+using Integration.Domain.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -54,6 +55,41 @@ public sealed class BusinessUnitResolveHelper
                 "Error resolving business unit for  Sales Organization: '{salesOrg}' Division: {Division}",
                 salesOrg,
                 division
+            );
+            throw;
+        }
+    }
+
+    public async Task<ZYBusinessUnit> GetBusinessUnitDataAsync(string businessUnit)
+    {
+        if (string.IsNullOrWhiteSpace(businessUnit))
+            throw new ArgumentException(
+                "BusinessUnit cannot be null or empty",
+                nameof(businessUnit)
+            );
+        try
+        {
+            var businessUnitData = await _businessUnitRepository.GetBusinessUnitByCodeAsync(
+                businessUnit
+            );
+
+            if (
+                businessUnitData == null
+                || string.IsNullOrWhiteSpace(businessUnitData.BusinessUnit)
+            )
+            {
+                var errorMessage = $"No active business unit found as {businessUnit}";
+                _logger.LogError(errorMessage);
+                throw new InvalidOperationException(errorMessage);
+            }
+            return businessUnitData;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error resolving business unit data for {businessUnit}",
+                businessUnit
             );
             throw;
         }

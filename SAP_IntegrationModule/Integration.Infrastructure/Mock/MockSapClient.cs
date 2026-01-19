@@ -1,4 +1,6 @@
-﻿using Integration.Application.DTOs;
+﻿using System.Text;
+using System.Text.Json;
+using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
 
 namespace Integration.Infrastructure.Mock;
@@ -163,5 +165,17 @@ public sealed class MockSapClient : ISapClient
             EnteredOnAt = DateTime.UtcNow, // Last updated date/time
             MaterialDocumentNumber = dto.MaterialDocumentNumber ?? "DOC987654",
         };
+    }
+
+    public async Task<SAPReceiptResponseDto> SendReceiptAsync(ReceiptRequestDto request)
+    {
+        SAPReceiptResponseDto result = new SAPReceiptResponseDto
+        {
+            E_REASON = "Mock receipt processed successfully",
+            E_RESULT = "1",
+            DOCUMENT_NUMBER = "REC123456789",
+        };
+
+        return result;
     }
 }
