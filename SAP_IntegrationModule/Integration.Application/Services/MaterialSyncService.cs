@@ -67,7 +67,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 }
 
                 var materialGroups = sapMaterials.GroupBy(m => new { m.Material }).ToList();
-
+                var processedGroups = 0;
                 //await _productRepository.BeginTransactionAsync();
 
                 try
@@ -75,6 +75,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     foreach (var group in materialGroups)
                     {
                         await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
+                        processedGroups++;
                     }
 
                     //await _productRepository.CommitTransactionAsync();
@@ -106,7 +107,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
             {
                 result.Success = false;
                 result.Message = $"SAP API error: {sapEx.Message}";
-                _logger.LogError(sapEx, "SAP API error during customer sync");
+                _logger.LogError(sapEx, "SAP API error during material sync");
                 throw;
             }
             catch (Exception ex)
@@ -149,26 +150,28 @@ public sealed class MaterialSyncService : IMaterialSyncService
         {
             try
             {
-                var globalMaterialObj = await _mappingHelper.MapSapToXontGlobalMaterialAsync(
-                    sapMaterials[0]
-                );
+                #region global material processing (commented out)
+                //var globalMaterialObj = await _mappingHelper.MapSapToXontGlobalMaterialAsync(
+                //    sapMaterials[0]
+                //);
 
-                var globalMaterialExisting = await _productRepository.GetGlobalProductAsync(
-                    globalMaterialObj.ProductCode
-                );
-                if (globalMaterialExisting == null)
-                {
-                    await _productRepository.CreateGlobalProductAsync(globalMaterialObj);
-                }
-                else if (
-                    _mappingHelper.HasGlobalMaterialChanges(
-                        globalMaterialExisting,
-                        globalMaterialObj
-                    )
-                )
-                {
-                    _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
-                }
+                //var globalMaterialExisting = await _productRepository.GetGlobalProductAsync(
+                //    globalMaterialObj.ProductCode
+                //);
+                //if (globalMaterialExisting == null)
+                //{
+                //    await _productRepository.CreateGlobalProductAsync(globalMaterialObj);
+                //}
+                //else if (
+                //    _mappingHelper.HasGlobalMaterialChanges(
+                //        globalMaterialExisting,
+                //        globalMaterialObj
+                //    )
+                //)
+                //{
+                //    _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
+                //}
+                #endregion
 
                 foreach (var sapMaterial in sapMaterials)
                 {
@@ -222,7 +225,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                             sapMaterial.Material
                         );
                         result.FailedRecords++;
-                        throw new CustomerSyncException(
+                        throw new MaterialSyncException(
                             $"Failed to process material {sapMaterial.Material}: {ex.Message}",
                             sapMaterial.Material,
                             ex
@@ -238,7 +241,11 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     materialCode
                 );
                 result.FailedRecords += sapMaterials.Count;
-                throw;
+                throw new MaterialSyncException(
+                    $"Failed to process material {materialCode}: {ex.Message}",
+                    materialCode,
+                    ex
+                );
             }
         }
     }

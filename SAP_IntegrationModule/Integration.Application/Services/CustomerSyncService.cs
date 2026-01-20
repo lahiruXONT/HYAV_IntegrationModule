@@ -78,32 +78,16 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     result.TotalRecords
                 );
 
-                var groups = sapCustomers
-                    .Where(c => !string.IsNullOrWhiteSpace(c.Customer))
-                    .GroupBy(c => c.Customer.Trim())
-                    .ToList();
-
-                const int batchSize = 100;
+                var customerGroups = sapCustomers.GroupBy(c => new { c.Customer }).ToList();
                 var processedGroups = 0;
-
                 //await _customerRepository.BeginTransactionAsync();
 
                 try
                 {
-                    for (int i = 0; i < groups.Count; i += batchSize)
+                    foreach (var group in customerGroups)
                     {
-                        var batch = groups.Skip(i).Take(batchSize).ToList();
-                        _logger.LogDebug(
-                            "Processing batch {BatchNumber} of {TotalBatches}",
-                            (i / batchSize) + 1,
-                            (int)Math.Ceiling((double)groups.Count / batchSize)
-                        );
-
-                        foreach (var group in batch)
-                        {
-                            await ProcessCustomerGroupAsync(group.Key, group.ToList(), result);
-                            processedGroups++;
-                        }
+                        await ProcessCustomerGroupAsync(group.Key.Customer, group.ToList(), result);
+                        processedGroups++;
                     }
 
                     //await _customerRepository.CommitTransactionAsync();
@@ -125,16 +109,13 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 {
                     _logger.LogError(
                         ex,
-                        "Error during customer processing. Processed {Processed}/{Total} groups. Rolling back transaction.",
-                        processedGroups,
-                        groups.Count
+                        "Error during customer processing in sync , rolling back transaction"
                     );
 
                     //await _customerRepository.RollbackTransactionAsync();
 
                     result.Success = false;
-                    result.Message =
-                        $"Sync failed after processing {processedGroups} groups: {ex.Message}";
+                    result.Message = $"Sync  failed and rolled back: {ex.Message}";
                     throw;
                 }
             }
@@ -216,35 +197,37 @@ public sealed class CustomerSyncService : ICustomerSyncService
         {
             try
             {
-                var globalCustomerObj = await _mappingHelper.MapSapToXontGlobalCustomerAsync(
-                    sapCustomers[0]
-                );
+                #region global customer processing (commented out)
+                //var globalCustomerObj = await _mappingHelper.MapSapToXontGlobalCustomerAsync(
+                //    sapCustomers[0]
+                //);
 
-                var globalCustomerExisting = await _customerRepository.GetGlobalRetailerAsync(
-                    globalCustomerObj.RetailerCode
-                );
+                //var globalCustomerExisting = await _customerRepository.GetGlobalRetailerAsync(
+                //    globalCustomerObj.RetailerCode
+                //);
 
-                if (globalCustomerExisting == null)
-                {
-                    await _customerRepository.CreateGlobalRetailerAsync(globalCustomerObj);
-                    _logger.LogDebug(
-                        "Created global retailer: {RetailerCode}",
-                        globalCustomerObj.RetailerCode
-                    );
-                }
-                else if (
-                    _mappingHelper.HasGlobalRetailerChanges(
-                        globalCustomerExisting,
-                        globalCustomerObj
-                    )
-                )
-                {
-                    _mappingHelper.UpdateGlobalCustomer(globalCustomerExisting, globalCustomerObj);
-                    _logger.LogDebug(
-                        "Updated global retailer: {RetailerCode}",
-                        globalCustomerObj.RetailerCode
-                    );
-                }
+                //if (globalCustomerExisting == null)
+                //{
+                //    await _customerRepository.CreateGlobalRetailerAsync(globalCustomerObj);
+                //    _logger.LogDebug(
+                //        "Created global retailer: {RetailerCode}",
+                //        globalCustomerObj.RetailerCode
+                //    );
+                //}
+                //else if (
+                //    _mappingHelper.HasGlobalRetailerChanges(
+                //        globalCustomerExisting,
+                //        globalCustomerObj
+                //    )
+                //)
+                //{
+                //    _mappingHelper.UpdateGlobalCustomer(globalCustomerExisting, globalCustomerObj);
+                //    _logger.LogDebug(
+                //        "Updated global retailer: {RetailerCode}",
+                //        globalCustomerObj.RetailerCode
+                //    );
+                //}
+                #endregion
 
                 foreach (var sapCustomer in sapCustomers)
                 {
@@ -268,6 +251,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                                 xontRetailer.RetailerCode,
                                 sapCustomer.PostalCode
                             );
+                            await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
+                                xontRetailer.BusinessUnit,
+                                xontRetailer.RetailerCode,
+                                sapCustomer.Distributionchannel
+                            );
                             result.NewCustomers++;
                             _logger.LogDebug(
                                 "Created new retailer: {RetailerCode} in BU: {BusinessUnit}",
@@ -277,14 +265,15 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         }
                         else
                         {
-                            var (hasRetailerChanges, hasGeoChanges) =
+                            var (hasRetailerChanges, hasGeoChanges, hasDistChannelChanged) =
                                 await _mappingHelper.HasRetailerChanges(
                                     existing,
                                     xontRetailer,
-                                    sapCustomer.PostalCode
+                                    sapCustomer.PostalCode,
+                                    sapCustomer.Distributionchannel
                                 );
 
-                            if (hasRetailerChanges || hasGeoChanges)
+                            if (hasRetailerChanges || hasGeoChanges || hasDistChannelChanged)
                             {
                                 if (hasRetailerChanges)
                                     _mappingHelper.UpdateCustomer(existing, xontRetailer);
@@ -294,6 +283,13 @@ public sealed class CustomerSyncService : ICustomerSyncService
                                         xontRetailer.BusinessUnit,
                                         xontRetailer.RetailerCode,
                                         sapCustomer.PostalCode ?? ""
+                                    );
+
+                                if (hasDistChannelChanged)
+                                    await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
+                                        xontRetailer.BusinessUnit,
+                                        xontRetailer.RetailerCode,
+                                        sapCustomer.Distributionchannel
                                     );
                                 result.UpdatedCustomers++;
                                 _logger.LogDebug(
@@ -330,10 +326,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     {
                         _logger.LogError(
                             ex,
-                            "Error processing customer {CustomerCode} in business unit",
+                            "Error processing customer {CustomerCode} ",
                             sapCustomer.Customer
                         );
                         result.FailedRecords++;
+
                         throw new CustomerSyncException(
                             $"Failed to process customer {sapCustomer.Customer}: {ex.Message}",
                             sapCustomer.Customer,
@@ -350,7 +347,12 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     customerCode
                 );
                 result.FailedRecords += sapCustomers.Count;
-                throw;
+
+                throw new CustomerSyncException(
+                    $"Failed to process customer {customerCode}: {ex.Message}",
+                    customerCode,
+                    ex
+                );
             }
         }
     }

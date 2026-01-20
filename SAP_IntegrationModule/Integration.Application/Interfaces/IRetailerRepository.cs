@@ -19,8 +19,19 @@ public interface IRetailerRepository
         string retailerCode,
         string postalCode
     );
+    Task<bool> PostalCodeExistsForTownAsync(string businessUnit, string postalCode);
+    Task<bool> DistributionChannelExistsAsync(string businessUnit, string Distributionchannel);
 
-    Task<string?> GetCurrentPostalCodeForRetailerAsync(string businessUnit, string retailerCode);
-
+    Task AddOrUpdateRetailerDistributionChannelAsync(
+        string BusinessUnit,
+        string RetailerCode,
+        string Distributionchannel
+    );
+    Task<(bool hasGeoChanges, bool hasDistChannelChanges)> CheckClassificationChangesAsync(
+        string businessUnit,
+        string retailerCode,
+        string postalCode,
+        string distributionChannel
+    );
     Task ClearGeoCacheAsync();
 }
