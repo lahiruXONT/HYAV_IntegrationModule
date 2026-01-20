@@ -48,15 +48,22 @@ public class SapApiClient : ISapClient
     {
         try
         {
-            var queryParams = new Dictionary<string, string>
-            {
-                ["$filter"] =
-                    $"ChangedOn ge datetime'{request.Date}T00:00:00' "
-                    + $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
-                ["$format"] = "json",
-            };
-            var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-            var endpoint = $"/sap/opu/odata/sap/ZCUSTOMER_MASTER_SRV/CustomerSet?{queryString}";
+            //var queryParams = new Dictionary<string, string>
+            //{
+            //    ["$filter"] =
+            //        $"ChangedOn ge datetime'{request.Date}T00:00:00' "
+            //        + $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
+            //    ["$format"] = "json",
+            //};
+            //var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            //var endpoint = $"/sap/opu/odata/sap/ZCUSTOMER_MASTER_SRV/CustomerSet?{queryString}";
+
+            var content = new StringContent(
+                JsonSerializer.Serialize(request, _jsonOptions),
+                Encoding.UTF8,
+                "application/json"
+            );
+            var endpoint = $"/sap/opu/odata/sap/ZCUSTOMER_MASTER_SRV/CustomerSet";
             var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
 
             response.EnsureSuccessStatusCode();
@@ -85,15 +92,22 @@ public class SapApiClient : ISapClient
     {
         try
         {
-            var queryParams = new Dictionary<string, string>
-            {
-                ["$filter"] =
-                    $"ChangedOn ge datetime'{request.Date}T00:00:00' "
-                    + $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
-                ["$format"] = "json",
-            };
-            var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-            var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_MASTER_SRV/MaterialSet?{queryString}";
+            //var queryParams = new Dictionary<string, string>
+            //{
+            //    ["$filter"] =
+            //        $"ChangedOn ge datetime'{request.Date}T00:00:00' "
+            //        + $"or CreatedOn ge datetime'{request.Date}T00:00:00'",
+            //    ["$format"] = "json",
+            //};
+            //var queryString = string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            //var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_MASTER_SRV/MaterialSet?{queryString}";
+
+            var content = new StringContent(
+                JsonSerializer.Serialize(request, _jsonOptions),
+                Encoding.UTF8,
+                "application/json"
+            );
+            var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_MASTER_SRV/MaterialSet";
             var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
 
             response.EnsureSuccessStatusCode();
@@ -181,6 +195,38 @@ public class SapApiClient : ISapClient
         {
             _logger.LogError(ex, "Error sending receipt data to SAP");
             throw new SapApiExceptionDto($"SAP receipt API call failed: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<SapMaterialStockSyncResponseDto> GetMaterialStockAsync(
+        XontMaterialStockSyncRequestDto request
+    )
+    {
+        try
+        {
+            var content = new StringContent(
+                JsonSerializer.Serialize(request, _jsonOptions),
+                Encoding.UTF8,
+                "application/json"
+            );
+            var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_STOCK/MaterialStockSet";
+            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var sapResponse = JsonSerializer.Deserialize<SapMaterialStockSyncResponseDto>(
+                json,
+                _jsonOptions
+            );
+
+            return sapResponse;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching material stock data from SAP");
+            throw new SapApiExceptionDto($"SAP Material stock API call failed: {ex.Message}", ex);
         }
     }
 }

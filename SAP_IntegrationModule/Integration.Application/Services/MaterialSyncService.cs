@@ -67,7 +67,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 }
 
                 var materialGroups = sapMaterials.GroupBy(m => new { m.Material }).ToList();
-
+                var processedGroups = 0;
                 //await _productRepository.BeginTransactionAsync();
 
                 try
@@ -75,6 +75,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     foreach (var group in materialGroups)
                     {
                         await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
+                        processedGroups++;
                     }
 
                     //await _productRepository.CommitTransactionAsync();
@@ -149,26 +150,28 @@ public sealed class MaterialSyncService : IMaterialSyncService
         {
             try
             {
-                var globalMaterialObj = await _mappingHelper.MapSapToXontGlobalMaterialAsync(
-                    sapMaterials[0]
-                );
+                #region global material processing (commented out)
+                //var globalMaterialObj = await _mappingHelper.MapSapToXontGlobalMaterialAsync(
+                //    sapMaterials[0]
+                //);
 
-                var globalMaterialExisting = await _productRepository.GetGlobalProductAsync(
-                    globalMaterialObj.ProductCode
-                );
-                if (globalMaterialExisting == null)
-                {
-                    await _productRepository.CreateGlobalProductAsync(globalMaterialObj);
-                }
-                else if (
-                    _mappingHelper.HasGlobalMaterialChanges(
-                        globalMaterialExisting,
-                        globalMaterialObj
-                    )
-                )
-                {
-                    _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
-                }
+                //var globalMaterialExisting = await _productRepository.GetGlobalProductAsync(
+                //    globalMaterialObj.ProductCode
+                //);
+                //if (globalMaterialExisting == null)
+                //{
+                //    await _productRepository.CreateGlobalProductAsync(globalMaterialObj);
+                //}
+                //else if (
+                //    _mappingHelper.HasGlobalMaterialChanges(
+                //        globalMaterialExisting,
+                //        globalMaterialObj
+                //    )
+                //)
+                //{
+                //    _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
+                //}
+                #endregion
 
                 foreach (var sapMaterial in sapMaterials)
                 {

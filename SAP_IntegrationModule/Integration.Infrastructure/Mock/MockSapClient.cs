@@ -167,15 +167,33 @@ public sealed class MockSapClient : ISapClient
         };
     }
 
-    public async Task<SAPReceiptResponseDto> SendReceiptAsync(ReceiptRequestDto request)
+    public Task<SAPReceiptResponseDto> SendReceiptAsync(ReceiptRequestDto request)
     {
-        SAPReceiptResponseDto result = new SAPReceiptResponseDto
-        {
-            E_REASON = "Mock receipt processed successfully",
-            E_RESULT = "1",
-            DOCUMENT_NUMBER = "REC123456789",
-        };
+        return Task.FromResult(
+            new SAPReceiptResponseDto
+            {
+                E_REASON = "Mock receipt processed successfully",
+                E_RESULT = "1",
+                DOCUMENT_NUMBER = "REC123456789",
+            }
+        );
+    }
 
-        return result;
+    public Task<SapMaterialStockSyncResponseDto> GetMaterialStockAsync(
+        XontMaterialStockSyncRequestDto request
+    )
+    {
+        return Task.FromResult(
+            new SapMaterialStockSyncResponseDto
+            {
+                E_RESULT = "1",
+                E_REASON = "Mock stock data retrieved successfully",
+                E_OUT = "SUCCESS",
+                ITEM = new List<SapMaterialStockSyncResponseItem>
+                {
+                    new() { MATERIAL = "MAT001", QUANTITY = 100.0m },
+                },
+            }
+        );
     }
 }

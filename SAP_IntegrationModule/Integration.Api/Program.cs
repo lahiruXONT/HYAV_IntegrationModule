@@ -204,6 +204,7 @@ builder.Services.AddScoped<ICustomerSyncService, CustomerSyncService>();
 builder.Services.AddScoped<IMaterialSyncService, MaterialSyncService>();
 builder.Services.AddScoped<IStockSyncService, StockSyncService>();
 builder.Services.AddScoped<IReceiptSyncService, ReceiptSyncService>();
+builder.Services.AddScoped<IMaterialStockSyncService, MaterialStockSyncService>();
 
 builder.Services.AddMemoryCache();
 
