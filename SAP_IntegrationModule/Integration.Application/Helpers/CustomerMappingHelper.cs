@@ -60,10 +60,6 @@ public sealed class CustomerMappingHelper
                 ),
                 BusinessUnit = businessUnit,
                 TerritoryCode = ApplySapValueSafe(territory.TerritoryCode, string.Empty),
-                DistributionChannel = ApplySapValueSafe(
-                    sapCustomer.Distributionchannel,
-                    string.Empty
-                ),
 
                 // Default values
                 PricingMethod = string.Empty,
@@ -165,7 +161,42 @@ public sealed class CustomerMappingHelper
             var errorMessage =
                 $"No territory found for postal code: '{sapCustomer.PostalCode}' for customer '{sapCustomer.Customer}'";
         }
+        else
+        {
+            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
+                sapCustomer.SalesOrganization ?? string.Empty,
+                sapCustomer.Division ?? string.Empty
+            );
+            if (
+                !await _customerRepository.PostalCodeExistsForTownAsync(
+                    businessUnit,
+                    sapCustomer.PostalCode
+                )
+            )
+            {
+                var errorMessage = $"No postal code: '{sapCustomer.PostalCode}' exist as TOWN";
+            }
+        }
 
+        if (string.IsNullOrWhiteSpace(sapCustomer.Distributionchannel))
+            errors.Add("Distributionchannel is required");
+        else
+        {
+            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
+                sapCustomer.SalesOrganization ?? string.Empty,
+                sapCustomer.Division ?? string.Empty
+            );
+            if (
+                !await _customerRepository.DistributionChannelExistsAsync(
+                    businessUnit,
+                    sapCustomer.Distributionchannel
+                )
+            )
+            {
+                var errorMessage =
+                    $"No Distribution channel : '{sapCustomer.PostalCode}' exist for Business Unit : '{businessUnit}'";
+            }
+        }
         if (string.IsNullOrWhiteSpace(sapCustomer.HouseNo))
             errors.Add("House No is required");
 
@@ -193,10 +224,15 @@ public sealed class CustomerMappingHelper
         }
     }
 
-    public async Task<(bool retailerChanged, bool geoClassificationChanged)> HasRetailerChanges(
+    public async Task<(
+        bool retailerChanged,
+        bool geoClassificationChanged,
+        bool distChannelChanged
+    )> HasRetailerChanges(
         Retailer existing,
         Retailer updated,
-        string postalCode
+        string postalCode,
+        string distChannel
     )
     {
         if (existing == null)
@@ -262,11 +298,6 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             )
             || !string.Equals(
-                existing.DistributionChannel?.Trim(),
-                updated.DistributionChannel?.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-            || !string.Equals(
                 existing.SAPVatRegistrationNo?.Trim(),
                 updated.SAPVatRegistrationNo?.Trim(),
                 StringComparison.OrdinalIgnoreCase
@@ -308,8 +339,19 @@ public sealed class CustomerMappingHelper
             retailerTown?.Trim(),
             StringComparison.OrdinalIgnoreCase
         );
+        string currentDistChannel =
+            await _customerRepository.GetCurrentdistChannelForRetailerAsync(
+                existing.BusinessUnit ?? "",
+                existing.RetailerCode ?? ""
+            ) ?? string.Empty;
 
-        return (retailerChanged, geoClassificationChanged);
+        bool distChannelChanged = !string.Equals(
+            currentDistChannel?.Trim(),
+            distChannel?.Trim(),
+            StringComparison.OrdinalIgnoreCase
+        );
+
+        return (retailerChanged, geoClassificationChanged, distChannelChanged);
     }
 
     public void UpdateCustomer(Retailer existing, Retailer updated)
@@ -331,7 +373,6 @@ public sealed class CustomerMappingHelper
         existing.SAPSettlementTermsCode = updated.SAPSettlementTermsCode;
         existing.CreditLimit = updated.CreditLimit;
         existing.TerritoryCode = updated.TerritoryCode;
-        existing.DistributionChannel = updated.DistributionChannel;
         existing.SAPVatRegistrationNo = updated.SAPVatRegistrationNo;
         existing.VatCode = updated.VatCode;
         existing.VatStatus = updated.VatStatus;

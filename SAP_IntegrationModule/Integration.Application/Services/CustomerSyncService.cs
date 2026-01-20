@@ -251,6 +251,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                                 xontRetailer.RetailerCode,
                                 sapCustomer.PostalCode
                             );
+                            await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
+                                xontRetailer.BusinessUnit,
+                                xontRetailer.RetailerCode,
+                                sapCustomer.Distributionchannel
+                            );
                             result.NewCustomers++;
                             _logger.LogDebug(
                                 "Created new retailer: {RetailerCode} in BU: {BusinessUnit}",
@@ -260,14 +265,15 @@ public sealed class CustomerSyncService : ICustomerSyncService
                         }
                         else
                         {
-                            var (hasRetailerChanges, hasGeoChanges) =
+                            var (hasRetailerChanges, hasGeoChanges, hasDistChannelChanged) =
                                 await _mappingHelper.HasRetailerChanges(
                                     existing,
                                     xontRetailer,
-                                    sapCustomer.PostalCode
+                                    sapCustomer.PostalCode,
+                                    sapCustomer.Distributionchannel
                                 );
 
-                            if (hasRetailerChanges || hasGeoChanges)
+                            if (hasRetailerChanges || hasGeoChanges || hasDistChannelChanged)
                             {
                                 if (hasRetailerChanges)
                                     _mappingHelper.UpdateCustomer(existing, xontRetailer);
@@ -277,6 +283,13 @@ public sealed class CustomerSyncService : ICustomerSyncService
                                         xontRetailer.BusinessUnit,
                                         xontRetailer.RetailerCode,
                                         sapCustomer.PostalCode ?? ""
+                                    );
+
+                                if (hasDistChannelChanged)
+                                    await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
+                                        xontRetailer.BusinessUnit,
+                                        xontRetailer.RetailerCode,
+                                        sapCustomer.Distributionchannel
                                     );
                                 result.UpdatedCustomers++;
                                 _logger.LogDebug(

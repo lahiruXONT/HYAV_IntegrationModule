@@ -63,8 +63,41 @@ public sealed class RetailerRepository : IRetailerRepository
             .Select(rc => rc.MasterGroupValue)
             .FirstOrDefaultAsync();
 
+    public Task<string?> GetCurrentdistChannelForRetailerAsync(
+        string businessUnit,
+        string retailerCode
+    ) =>
+        _context
+            .RetailerClassifications.Where(rc =>
+                rc.BusinessUnit == businessUnit
+                && rc.RetailerCode == retailerCode
+                && rc.MasterGroup == "DISTCHNL"
+                && rc.Status == "1"
+            )
+            .Select(rc => rc.MasterGroupValue)
+            .FirstOrDefaultAsync();
+
     public Task<bool> PostalCodeTerritoryExistsAsync(string postalCode) =>
         _context.TerritoryPostalCodes.AnyAsync(t => t.PostalCode == postalCode);
+
+    public Task<bool> PostalCodeExistsForTownAsync(string businessUnit, string postalCode) =>
+        _context.MasterDefinitionValues.AnyAsync(v =>
+            v.BusinessUnit == businessUnit
+            && v.MasterGroup == "TOWN"
+            && v.MasterGroupValue == postalCode
+            && v.Status == "1"
+        );
+
+    public Task<bool> DistributionChannelExistsAsync(
+        string businessUnit,
+        string distributionchannel
+    ) =>
+        _context.MasterDefinitionValues.AnyAsync(v =>
+            v.BusinessUnit == businessUnit
+            && v.MasterGroup == "DISTCHNL"
+            && v.MasterGroupValue == distributionchannel
+            && v.Status == "1"
+        );
 
     public async Task CreateRetailerAsync(Retailer retailer)
     {
@@ -82,24 +115,27 @@ public sealed class RetailerRepository : IRetailerRepository
         string postalCode
     )
     {
-        var hierarchy = await GetGeographicHierarchySafeAsync(businessUnit, postalCode);
-        if (!hierarchy.Any())
-            return;
-
         var existingClassifications = await _context
             .RetailerClassifications.Where(rc =>
                 rc.BusinessUnit == businessUnit
                 && rc.RetailerCode == retailerCode
-                && rc.Status == "1"
+                && (
+                    rc.MasterGroup == "TOWN"
+                    || rc.MasterGroup == "DISTRK"
+                    || rc.MasterGroup == "PROVINCE"
+                    || rc.MasterGroup == "CONT"
+                )
             )
             .ToListAsync();
 
-        foreach (var rc in existingClassifications)
+        if (existingClassifications.Any())
         {
-            rc.Status = "0";
-            rc.UpdatedOn = DateTime.UtcNow;
-            rc.UpdatedBy = "SAP_SYNC";
+            _context.RetailerClassifications.RemoveRange(existingClassifications);
         }
+
+        var hierarchy = await GetGeographicHierarchySafeAsync(businessUnit, postalCode);
+        if (!hierarchy.Any())
+            return;
 
         var masterGroups = hierarchy.Select(h => h.MasterGroup).Distinct().ToList();
 
@@ -133,6 +169,55 @@ public sealed class RetailerRepository : IRetailerRepository
             .ToList();
 
         await _context.RetailerClassifications.AddRangeAsync(newClassifications);
+    }
+
+    public async Task AddOrUpdateRetailerDistributionChannelAsync(
+        string businessUnit,
+        string retailerCode,
+        string distributionchannel
+    )
+    {
+        var existingChannels = await _context
+            .RetailerClassifications.Where(rc =>
+                rc.BusinessUnit == businessUnit
+                && rc.RetailerCode == retailerCode
+                && rc.MasterGroup == "DISTCHNL"
+            )
+            .ToListAsync();
+
+        if (existingChannels.Any())
+        {
+            _context.RetailerClassifications.RemoveRange(existingChannels);
+        }
+        var distChannelDefinitionValues = await _context
+            .MasterDefinitionValues.Where(v =>
+                v.BusinessUnit == businessUnit
+                && v.MasterGroup == "DISTCHNL"
+                && v.MasterGroupValue == distributionchannel
+                && v.Status == "1"
+            )
+            .FirstOrDefaultAsync();
+        var distChannelDefinition = await _context
+            .MasterDefinitions.Where(v =>
+                v.BusinessUnit == businessUnit && v.MasterGroup == "DISTCHNL" && v.Status == "1"
+            )
+            .FirstOrDefaultAsync();
+        var newChannel = new RetailerClassification
+        {
+            BusinessUnit = businessUnit,
+            RetailerCode = retailerCode,
+            MasterGroup = distChannelDefinitionValues.MasterGroup,
+            MasterGroupDescription = distChannelDefinition.GroupDescription,
+            MasterGroupValue = distChannelDefinitionValues.MasterGroupValue,
+            MasterGroupValueDescription = distChannelDefinitionValues.MasterGroupValueDescription,
+            GroupType = distChannelDefinitionValues.GroupType,
+            Status = "1",
+            CreatedOn = DateTime.UtcNow,
+            CreatedBy = "SAP_SYNC",
+            UpdatedOn = DateTime.UtcNow,
+            UpdatedBy = "SAP_SYNC",
+        };
+        await _context.RetailerClassifications.AddAsync(newChannel);
     }
 
     private async Task<List<MasterDefinitionValue>> GetGeographicHierarchySafeAsync(
