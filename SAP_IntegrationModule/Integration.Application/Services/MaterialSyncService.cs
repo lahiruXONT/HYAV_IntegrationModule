@@ -107,7 +107,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
             {
                 result.Success = false;
                 result.Message = $"SAP API error: {sapEx.Message}";
-                _logger.LogError(sapEx, "SAP API error during customer sync");
+                _logger.LogError(sapEx, "SAP API error during material sync");
                 throw;
             }
             catch (Exception ex)
@@ -225,7 +225,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                             sapMaterial.Material
                         );
                         result.FailedRecords++;
-                        throw new CustomerSyncException(
+                        throw new MaterialSyncException(
                             $"Failed to process material {sapMaterial.Material}: {ex.Message}",
                             sapMaterial.Material,
                             ex
@@ -241,7 +241,11 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     materialCode
                 );
                 result.FailedRecords += sapMaterials.Count;
-                throw;
+                throw new MaterialSyncException(
+                    $"Failed to process material {materialCode}: {ex.Message}",
+                    materialCode,
+                    ex
+                );
             }
         }
     }

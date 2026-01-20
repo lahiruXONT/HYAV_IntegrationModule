@@ -328,28 +328,13 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             );
 
-        string retailerTown =
-            await _customerRepository.GetCurrentPostalCodeForRetailerAsync(
-                existing.BusinessUnit ?? "",
-                existing.RetailerCode ?? ""
-            ) ?? string.Empty;
-
-        bool geoClassificationChanged = !string.Equals(
-            postalCode?.Trim(),
-            retailerTown?.Trim(),
-            StringComparison.OrdinalIgnoreCase
-        );
-        string currentDistChannel =
-            await _customerRepository.GetCurrentdistChannelForRetailerAsync(
-                existing.BusinessUnit ?? "",
-                existing.RetailerCode ?? ""
-            ) ?? string.Empty;
-
-        bool distChannelChanged = !string.Equals(
-            currentDistChannel?.Trim(),
-            distChannel?.Trim(),
-            StringComparison.OrdinalIgnoreCase
-        );
+        var (geoClassificationChanged, distChannelChanged) =
+            await _customerRepository.CheckClassificationChangesAsync(
+                existing.BusinessUnit,
+                existing.RetailerCode,
+                postalCode,
+                distChannel
+            );
 
         return (retailerChanged, geoClassificationChanged, distChannelChanged);
     }

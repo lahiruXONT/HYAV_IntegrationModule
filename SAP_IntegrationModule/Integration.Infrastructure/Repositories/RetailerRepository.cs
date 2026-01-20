@@ -49,33 +49,37 @@ public sealed class RetailerRepository : IRetailerRepository
     public Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode) =>
         _context.TerritoryPostalCodes.FirstOrDefaultAsync(t => t.PostalCode == postalCode);
 
-    public Task<string?> GetCurrentPostalCodeForRetailerAsync(
+    public async Task<(
+        bool hasGeoChanges,
+        bool hasDistChannelChanges
+    )> CheckClassificationChangesAsync(
         string businessUnit,
-        string retailerCode
-    ) =>
-        _context
+        string retailerCode,
+        string postalCode,
+        string distributionChannel
+    )
+    {
+        var currentClassifications = await _context
             .RetailerClassifications.Where(rc =>
                 rc.BusinessUnit == businessUnit
                 && rc.RetailerCode == retailerCode
-                && rc.MasterGroup == "TOWN"
                 && rc.Status == "1"
             )
-            .Select(rc => rc.MasterGroupValue)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-    public Task<string?> GetCurrentdistChannelForRetailerAsync(
-        string businessUnit,
-        string retailerCode
-    ) =>
-        _context
-            .RetailerClassifications.Where(rc =>
-                rc.BusinessUnit == businessUnit
-                && rc.RetailerCode == retailerCode
-                && rc.MasterGroup == "DISTCHNL"
-                && rc.Status == "1"
-            )
-            .Select(rc => rc.MasterGroupValue)
-            .FirstOrDefaultAsync();
+        var town = currentClassifications
+            .FirstOrDefault(rc => rc.MasterGroup == "TOWN")
+            ?.MasterGroupValue;
+
+        var distChannel = currentClassifications
+            .FirstOrDefault(rc => rc.MasterGroup == "DISTCHNL")
+            ?.MasterGroupValue;
+
+        bool hasGeoChanges = town != postalCode;
+        bool hasDistChannelChanges = distChannel != distributionChannel;
+
+        return (hasGeoChanges, hasDistChannelChanges);
+    }
 
     public Task<bool> PostalCodeTerritoryExistsAsync(string postalCode) =>
         _context.TerritoryPostalCodes.AnyAsync(t => t.PostalCode == postalCode);

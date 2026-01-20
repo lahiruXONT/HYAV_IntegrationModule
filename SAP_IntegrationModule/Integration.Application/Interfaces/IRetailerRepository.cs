@@ -27,7 +27,11 @@ public interface IRetailerRepository
         string RetailerCode,
         string Distributionchannel
     );
-    Task<string?> GetCurrentPostalCodeForRetailerAsync(string businessUnit, string retailerCode);
-    Task<string?> GetCurrentdistChannelForRetailerAsync(string businessUnit, string retailerCode);
+    Task<(bool hasGeoChanges, bool hasDistChannelChanges)> CheckClassificationChangesAsync(
+        string businessUnit,
+        string retailerCode,
+        string postalCode,
+        string distributionChannel
+    );
     Task ClearGeoCacheAsync();
 }

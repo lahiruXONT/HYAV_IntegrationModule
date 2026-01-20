@@ -326,10 +326,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     {
                         _logger.LogError(
                             ex,
-                            "Error processing customer {CustomerCode} in business unit",
+                            "Error processing customer {CustomerCode} ",
                             sapCustomer.Customer
                         );
                         result.FailedRecords++;
+
                         throw new CustomerSyncException(
                             $"Failed to process customer {sapCustomer.Customer}: {ex.Message}",
                             sapCustomer.Customer,
@@ -346,7 +347,12 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     customerCode
                 );
                 result.FailedRecords += sapCustomers.Count;
-                throw;
+
+                throw new CustomerSyncException(
+                    $"Failed to process customer {customerCode}: {ex.Message}",
+                    customerCode,
+                    ex
+                );
             }
         }
     }
