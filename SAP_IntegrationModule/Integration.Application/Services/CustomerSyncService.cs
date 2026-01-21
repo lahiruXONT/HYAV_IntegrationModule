@@ -293,6 +293,12 @@ public sealed class CustomerSyncService : ICustomerSyncService
                             $"Customer {sapCustomer.Customer}: {valEx.Message}"
                         );
                     }
+                    catch (BusinessUnitResolveException valEx)
+                    {
+                        _logger.LogWarning(valEx.Message);
+                        result.FailedRecords++;
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         _logger.LogError(

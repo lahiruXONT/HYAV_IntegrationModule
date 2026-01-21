@@ -121,3 +121,9 @@ public sealed class MaterialStockSyncException : Exception
         MaterialCode = materialCode;
     }
 }
+
+public sealed class BusinessUnitResolveException : Exception
+{
+    public BusinessUnitResolveException(string message, Exception innerException)
+        : base(message, innerException) { }
+}

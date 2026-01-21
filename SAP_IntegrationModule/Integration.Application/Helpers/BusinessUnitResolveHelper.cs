@@ -1,4 +1,5 @@
-﻿using Integration.Application.Interfaces;
+﻿using Integration.Application.DTOs;
+using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -60,7 +61,10 @@ public sealed class BusinessUnitResolveHelper
                 salesOrg,
                 division
             );
-            return (false, string.Empty, ex.Message);
+            throw new BusinessUnitResolveException(
+                $"Error resolving business unit for SalesOrg: {salesOrg}, Division: {division}",
+                ex
+            );
         }
     }
 
