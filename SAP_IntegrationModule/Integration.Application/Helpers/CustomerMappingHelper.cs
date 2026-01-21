@@ -191,7 +191,7 @@ public sealed class CustomerMappingHelper
         )
         {
             errors.Add(
-                $"No Settlement Term '{sapCustomer.PaymentTerm}' found for customer '{sapCustomer.Customer}'"
+                $"No Settlement Term '{sapCustomer.PaymentTerm}' found for Business Unit '{businessUnit}'"
             );
         }
 

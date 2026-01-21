@@ -53,88 +53,48 @@ public class AuthRepository : IAuthRepository
 
     public async Task UpdateUserAsync(User user)
     {
-        try
-        {
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to update user {Username}", user.UserName);
-            throw;
-        }
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
     }
 
     public async Task CreateUserSessionAsync(UserSession session)
     {
-        try
-        {
-            await _context.UserSessions.AddAsync(session);
-            await _context.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create user session for user {UserId}", session.UserID);
-            throw;
-        }
+        await _context.UserSessions.AddAsync(session);
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateUserSessionAsync(UserSession session)
     {
-        try
-        {
-            _context.UserSessions.Update(session);
-            await _context.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to update user session {SessionId}", session.RecID);
-            throw;
-        }
+        _context.UserSessions.Update(session);
+        await _context.SaveChangesAsync();
     }
 
     public async Task InvalidateUserSessionsAsync(long userId)
     {
-        try
-        {
-            var sessions = await _context
-                .UserSessions.Where(s => s.UserID == userId && s.Status == "1")
-                .ToListAsync();
+        var sessions = await _context
+            .UserSessions.Where(s => s.UserID == userId && s.Status == "1")
+            .ToListAsync();
 
-            foreach (var session in sessions)
-            {
-                session.Status = "0";
-                session.UpdatedOn = DateTime.Now;
-            }
-
-            await _context.SaveChangesAsync();
-        }
-        catch (Exception ex)
+        foreach (var session in sessions)
         {
-            _logger.LogError(ex, "Failed to invalidate sessions for user {UserId}", userId);
-            throw;
+            session.Status = "0";
+            session.UpdatedOn = DateTime.Now;
         }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task<bool> CreateUserAsync(User user)
     {
-        try
-        {
-            var existing = await _context.Users.AnyAsync(u =>
-                u.BusinessUnit == user.BusinessUnit && u.UserName == user.UserName
-            );
+        var existing = await _context.Users.AnyAsync(u =>
+            u.BusinessUnit == user.BusinessUnit && u.UserName == user.UserName
+        );
 
-            if (existing)
-                return false;
+        if (existing)
+            return false;
 
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create user {Username}", user.UserName);
-            throw;
-        }
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

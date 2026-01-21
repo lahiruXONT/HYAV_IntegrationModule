@@ -122,25 +122,4 @@ public sealed class BusinessUnitResolveHelper
             throw;
         }
     }
-
-    public async Task<bool> BusinessUnitExistsAsync(string businessUnitCode)
-    {
-        if (string.IsNullOrWhiteSpace(businessUnitCode))
-            return false;
-
-        try
-        {
-            var unit = await _businessUnitRepository.GetBusinessUnitByCodeAsync(businessUnitCode);
-            return unit != null && !string.IsNullOrWhiteSpace(unit.BusinessUnit);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Error checking if business unit exists: {Code}",
-                businessUnitCode
-            );
-            throw;
-        }
-    }
 }

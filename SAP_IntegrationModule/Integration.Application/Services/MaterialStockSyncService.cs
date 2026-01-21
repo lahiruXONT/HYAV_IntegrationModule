@@ -61,7 +61,7 @@ public class MaterialStockSyncService : IMaterialStockSyncService
                 {
                     result.Success = false;
                     result.Message =
-                        sapMaterialStockResult?.E_REASON ?? "No response received from SAP";
+                        sapMaterialStockResult?.E_REASON ?? "No response message received from SAP";
                     _logger.LogWarning(
                         "SAP returned no data or error result: {Result}, Reason: {Reason}",
                         sapMaterialStockResult?.E_RESULT,
@@ -84,16 +84,16 @@ public class MaterialStockSyncService : IMaterialStockSyncService
             catch (SapApiExceptionDto sapEx)
             {
                 result.Success = false;
-                result.Message = $"SAP API error: {sapEx.Message}";
-                _logger.LogError(sapEx, "SAP API error during material stock sync");
+                result.Message = sapEx.Message;
+                _logger.LogError(sapEx.InnerException, result.Message);
                 throw;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.Message = $"Unexpected error: {ex.Message}";
-                _logger.LogError(ex, "Unexpected error during material stock sync");
-                throw new CustomerSyncException($"Material stock sync failed: {ex.Message}", ex);
+                result.Message = "Unexpected error during material stock sync";
+                _logger.LogError(ex, result.Message);
+                throw new MaterialStockSyncException(result.Message, ex);
             }
             finally
             {

@@ -54,7 +54,7 @@ public sealed class GlobalExceptionMiddleware
         {
             case SapApiExceptionDto sapEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
-                errorResponse.Message = "SAP system connection failed";
+                errorResponse.Message = sapEx.Message;
                 errorResponse.ErrorCode = ErrorCodes.SapError;
                 break;
 
