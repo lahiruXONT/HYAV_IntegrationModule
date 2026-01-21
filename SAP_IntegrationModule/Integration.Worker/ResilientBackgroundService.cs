@@ -1,4 +1,5 @@
-﻿using Integration.Application.Helpers;
+﻿using Integration.Application.DTOs;
+using Integration.Application.Helpers;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -282,6 +283,7 @@ public abstract class ResilientBackgroundService : BackgroundService
     private static bool IsTransientException(Exception ex)
     {
         return ex is HttpRequestException
+            || ex is SapApiExceptionDto
             || ex is TimeoutException
             || ex is TaskCanceledException
             || (ex is SqlException sqlEx && IsTransientSqlError(sqlEx.Number));

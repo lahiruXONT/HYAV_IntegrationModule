@@ -17,6 +17,4 @@ public sealed class ErrorResponse
     public List<string>? Details { get; set; }
     public string? StackTrace { get; set; }
     public string? InnerException { get; set; }
-    public string? CustomerCode { get; set; }
-    public string? MaterialCode { get; set; }
 }

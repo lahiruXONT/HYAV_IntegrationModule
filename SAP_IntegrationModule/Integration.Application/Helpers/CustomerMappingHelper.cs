@@ -27,17 +27,13 @@ public sealed class CustomerMappingHelper
 
     public async Task<Retailer> MapSapToXontCustomerAsync(SapCustomerResponseDto sapCustomer)
     {
-        await ValidateSapCustomerAsync(sapCustomer);
+        var businessUnit = await ValidateSapCustomerAndGetBusinessUnitAsync(sapCustomer);
 
         try
         {
-            var territory = await _customerRepository.GetTerritoryCodeAsync(
-                sapCustomer.PostalCode ?? string.Empty
-            );
-
-            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
-                sapCustomer.SalesOrganization ?? string.Empty,
-                sapCustomer.Division ?? string.Empty
+            var settlementTerms = await _customerRepository.GetSettlementTermAsync(
+                businessUnit,
+                sapCustomer.PaymentTerm
             );
 
             var retailer = new Retailer
@@ -53,13 +49,17 @@ public sealed class CustomerMappingHelper
                 FaxNumber = ApplySapValueSafe(sapCustomer.Fax, string.Empty),
                 SAPEmailAddress = ApplySapValueSafe(sapCustomer.Email, string.Empty),
                 SAPSettlementTermsCode = ApplySapValueSafe(sapCustomer.PaymentTerm, string.Empty),
+                SettlementTermsCode = ApplySapValueSafe(
+                    settlementTerms?.SettlementTermsCode,
+                    string.Empty
+                ),
                 CreditLimit = sapCustomer?.CreditLimit ?? 0m,
                 SAPVatRegistrationNo = ApplySapValueSafe(
                     sapCustomer.VATRegistrationNumber,
                     string.Empty
                 ),
                 BusinessUnit = businessUnit,
-                TerritoryCode = ApplySapValueSafe(territory.TerritoryCode, string.Empty),
+                TerritoryCode = ApplySapValueSafe(sapCustomer.SalesOffice, string.Empty),
 
                 // Default values
                 PricingMethod = string.Empty,
@@ -109,7 +109,9 @@ public sealed class CustomerMappingHelper
         }
     }
 
-    private async Task ValidateSapCustomerAsync(SapCustomerResponseDto sapCustomer)
+    private async Task<string> ValidateSapCustomerAndGetBusinessUnitAsync(
+        SapCustomerResponseDto sapCustomer
+    )
     {
         if (sapCustomer == null)
             throw new ValidationExceptionDto("SAP customer data cannot be null");
@@ -118,96 +120,85 @@ public sealed class CustomerMappingHelper
 
         if (string.IsNullOrWhiteSpace(sapCustomer.Customer))
             errors.Add("Customer code is required");
-
-        if (sapCustomer.Customer?.Length > 15)
+        else if (sapCustomer.Customer.Length > 15)
             errors.Add($"Customer code exceeds 15 characters: {sapCustomer.Customer}");
 
         if (string.IsNullOrWhiteSpace(sapCustomer.CustomerName))
             errors.Add("Customer name is required");
-
-        if (sapCustomer.CustomerName?.Length > 75)
+        else if (sapCustomer.CustomerName.Length > 75)
             errors.Add($"Customer name exceeds 75 characters: {sapCustomer.CustomerName}");
 
-        if (string.IsNullOrWhiteSpace(sapCustomer.SalesOrganization))
-            errors.Add("Sales organization is required");
+        var result = await _businessUnitResolver.TryResolveBusinessUnitAsync(
+            sapCustomer.SalesOrganization,
+            sapCustomer.Division
+        );
 
-        if (string.IsNullOrWhiteSpace(sapCustomer.Division))
-            errors.Add("Division is required");
-
-        if (
-            !string.IsNullOrWhiteSpace(sapCustomer.Division)
-            && !string.IsNullOrWhiteSpace(sapCustomer.SalesOrganization)
-        )
+        if (!result.IsValid)
         {
-            var exists = await _businessUnitResolver.SalesOrgDivisionExistsAsync(
-                sapCustomer.SalesOrganization,
-                sapCustomer.Division
-            );
-
-            if (!exists)
-            {
-                errors.Add(
-                    $"Business unit not found for SalesOrg: '{sapCustomer.SalesOrganization}' Division: '{sapCustomer.Division}'"
-                );
-            }
+            errors.Add(result.Error);
+            throw new ValidationExceptionDto(string.Join("; ", errors));
         }
+
+        var businessUnit = result.BusinessUnit;
+
+        if (string.IsNullOrWhiteSpace(sapCustomer.SalesOffice))
+            errors.Add("Sales Office is required");
 
         if (string.IsNullOrWhiteSpace(sapCustomer.PostalCode))
         {
             errors.Add("Postal Code is required");
         }
-        else if (!await _customerRepository.PostalCodeTerritoryExistsAsync(sapCustomer.PostalCode))
-        {
-            var errorMessage =
-                $"No territory found for postal code: '{sapCustomer.PostalCode}' for customer '{sapCustomer.Customer}'";
-        }
-        else
-        {
-            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
-                sapCustomer.SalesOrganization ?? string.Empty,
-                sapCustomer.Division ?? string.Empty
-            );
-            if (
-                !await _customerRepository.PostalCodeExistsForTownAsync(
-                    businessUnit,
-                    sapCustomer.PostalCode
-                )
+        else if (
+            !await _customerRepository.PostalCodeExistsForTownAsync(
+                businessUnit,
+                sapCustomer.PostalCode
             )
-            {
-                var errorMessage = $"No postal code: '{sapCustomer.PostalCode}' exist as TOWN";
-            }
+        )
+        {
+            errors.Add(
+                $"No postal code '{sapCustomer.PostalCode}' exists as TOWN for Business Unit '{businessUnit}'"
+            );
         }
 
         if (string.IsNullOrWhiteSpace(sapCustomer.Distributionchannel))
-            errors.Add("Distributionchannel is required");
-        else
         {
-            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
-                sapCustomer.SalesOrganization ?? string.Empty,
-                sapCustomer.Division ?? string.Empty
-            );
-            if (
-                !await _customerRepository.DistributionChannelExistsAsync(
-                    businessUnit,
-                    sapCustomer.Distributionchannel
-                )
-            )
-            {
-                var errorMessage =
-                    $"No Distribution channel : '{sapCustomer.PostalCode}' exist for Business Unit : '{businessUnit}'";
-            }
+            errors.Add("Distribution channel is required");
         }
+        else if (
+            !await _customerRepository.DistributionChannelExistsAsync(
+                businessUnit,
+                sapCustomer.Distributionchannel
+            )
+        )
+        {
+            errors.Add(
+                $"No Distribution Channel '{sapCustomer.Distributionchannel}' exists for Business Unit '{businessUnit}'"
+            );
+        }
+
         if (string.IsNullOrWhiteSpace(sapCustomer.HouseNo))
             errors.Add("House No is required");
 
         if (string.IsNullOrWhiteSpace(sapCustomer.PaymentTerm))
+        {
             errors.Add("Payment Term is required");
+        }
+        else if (
+            !await _customerRepository.SettlementTermExistsAsync(
+                businessUnit,
+                sapCustomer.PaymentTerm
+            )
+        )
+        {
+            errors.Add(
+                $"No Settlement Term '{sapCustomer.PaymentTerm}' found for Business Unit '{businessUnit}'"
+            );
+        }
 
         if (errors.Any())
-        {
-            var errorMessage = string.Join("; ", errors);
-            throw new ValidationExceptionDto(errorMessage);
-        }
+            throw new ValidationExceptionDto(string.Join("; ", errors));
+
+        return businessUnit;
     }
 
     private void ValidateRetailer(Retailer retailer)

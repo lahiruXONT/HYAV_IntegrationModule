@@ -8,12 +8,10 @@ namespace Integration.Infrastructure.Repositories;
 public class LogRepository : ILogRepository
 {
     private readonly UserDbContext _context;
-    private readonly ILogger<LogRepository> _logger;
 
-    public LogRepository(UserDbContext context, ILogger<LogRepository> logger)
+    public LogRepository(UserDbContext context)
     {
         _context = context;
-        _logger = logger;
     }
 
     public async Task<long> LogRequestAsync(
@@ -24,33 +22,20 @@ public class LogRepository : ILogRepository
         string messageType = "I"
     )
     {
-        try
+        var log = new RequestLog
         {
-            var log = new RequestLog
-            {
-                BusinessUnit = businessUnit,
-                UserName = username,
-                MethodName = methodName,
-                Message = message.Length > 1000 ? message.Substring(0, 1000) : message, //Nazeer check this we may need to increase the size
-                MessageType = messageType,
-                UpdatedOn = DateTime.Now,
-            };
+            BusinessUnit = businessUnit,
+            UserName = username,
+            MethodName = methodName,
+            Message = message.Length > 1000 ? message.Substring(0, 1000) : message, //Nazeer check this we may need to increase the size
+            MessageType = messageType,
+            UpdatedOn = DateTime.Now,
+        };
 
-            await _context.RequestLogs.AddAsync(log);
-            await _context.SaveChangesAsync();
+        await _context.RequestLogs.AddAsync(log);
+        await _context.SaveChangesAsync();
 
-            return log.RecID;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to log request for {Username} in {BusinessUnit}",
-                username,
-                businessUnit
-            );
-            return 0;
-        }
+        return log.RecID;
     }
 
     public async Task LogErrorAsync(
@@ -62,31 +47,20 @@ public class LogRepository : ILogRepository
         string errorType = "E"
     )
     {
-        try
+        var errorLog = new ErrorLog
         {
-            var errorLog = new ErrorLog
-            {
-                BusinessUnit = businessUnit,
-                UserName = username,
-                MethodName = methodName,
-                ErrorOn = DateTime.Now,
-                ErrorType = errorType,
-                Error = error, //Nazeer check this we may need to increase the size
-                RequestLogID = requestLogId,
-                CreatedOn = DateTime.Now,
-                CreatedBy = username,
-            };
+            BusinessUnit = businessUnit,
+            UserName = username,
+            MethodName = methodName,
+            ErrorOn = DateTime.Now,
+            ErrorType = errorType,
+            Error = error, //Nazeer check this we may need to increase the size
+            RequestLogID = requestLogId,
+            CreatedOn = DateTime.Now,
+            CreatedBy = username,
+        };
 
-            await _context.ErrorLogs.AddAsync(errorLog);
-            await _context.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to log error for RequestLogID: {RequestLogId}",
-                requestLogId
-            );
-        }
+        await _context.ErrorLogs.AddAsync(errorLog);
+        await _context.SaveChangesAsync();
     }
 }

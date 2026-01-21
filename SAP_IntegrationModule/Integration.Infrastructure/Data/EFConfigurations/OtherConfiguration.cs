@@ -7,7 +7,7 @@ namespace Integration.Infrastructure.Data.EFConfigurations;
 public class OtherConfiguration
     : IEntityTypeConfiguration<MasterDefinitionValue>,
         IEntityTypeConfiguration<MasterDefinition>,
-        IEntityTypeConfiguration<TerritoryPostalCode>
+        IEntityTypeConfiguration<SettlementTerm>
 {
     public void Configure(EntityTypeBuilder<MasterDefinitionValue> entity)
     {
@@ -21,15 +21,16 @@ public class OtherConfiguration
         entity.HasKey(e => e.RecordID).HasName($"PK_MasterDefinition");
     }
 
-    public void Configure(EntityTypeBuilder<TerritoryPostalCode> entity)
+    public void Configure(EntityTypeBuilder<SettlementTerm> entity)
     {
-        entity.ToTable("TerritoryPostalCode", "RD");
-        entity.HasKey(e => e.RecID);
+        entity.ToTable("SettlementTerm", "XF");
         entity
-            .HasIndex(e => new { e.PostalCode })
-            .IsUnique()
-            .HasDatabaseName("UQ_TerritoryPostalCode_PostalCode");
-
-        entity.Property(e => e.PostalCode).IsRequired().HasMaxLength(10);
+            .HasKey(e => new
+            {
+                e.BusinessUnit,
+                e.SourceModuleCode,
+                e.SettlementTermsCode,
+            })
+            .HasName("PK_XF_SettlementTerm");
     }
 }

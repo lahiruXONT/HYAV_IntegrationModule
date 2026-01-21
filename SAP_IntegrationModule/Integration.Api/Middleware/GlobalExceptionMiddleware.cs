@@ -54,7 +54,7 @@ public sealed class GlobalExceptionMiddleware
         {
             case SapApiExceptionDto sapEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
-                errorResponse.Message = "SAP system connection failed";
+                errorResponse.Message = sapEx.Message;
                 errorResponse.ErrorCode = ErrorCodes.SapError;
                 break;
 
@@ -92,14 +92,12 @@ public sealed class GlobalExceptionMiddleware
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 errorResponse.Message = $"Customer sync failed for {custEx.CustomerCode}";
                 errorResponse.ErrorCode = ErrorCodes.CustomerSync;
-                errorResponse.CustomerCode = custEx.CustomerCode;
                 break;
 
             case MaterialSyncException matEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 errorResponse.Message = $"Material sync failed for {matEx.MaterialCode}";
                 errorResponse.ErrorCode = ErrorCodes.MaterialSync;
-                errorResponse.MaterialCode = matEx.MaterialCode;
                 break;
 
             default:

@@ -49,7 +49,7 @@ public class ReceiptSyncService : IReceiptSyncService
         {
             try
             {
-                _logger.LogInformation("Starting Receipt sync for date: {Date}", result.SyncDate);
+                _logger.LogInformation("Starting Receipt sync : {Date} ", result.SyncDate);
 
                 var pendingReceipts = await _transactionsRepository.GetUnsyncedReceiptsAsync(
                     request.IDs
@@ -61,7 +61,7 @@ public class ReceiptSyncService : IReceiptSyncService
                 {
                     result.Success = true;
                     result.Message = "No receipts found";
-                    _logger.LogInformation("No receipts found for date: {Date}", result.SyncDate);
+                    _logger.LogInformation("No receipts found : {Date}", result.SyncDate);
                     return result;
                 }
 
@@ -84,20 +84,13 @@ public class ReceiptSyncService : IReceiptSyncService
                     result.Success = true;
                     result.Message = BuildSuccessMessage(result);
 
-                    _logger.LogInformation(
-                        "Receipt sync completed successfully. {Total} processed, {Success} Success, {Skipped} Skipped,{Failed} failed in {ElapsedMs}ms",
-                        result.TotalRecords,
-                        result.SyncedRecords,
-                        result.SkippedRecords,
-                        result.FailedRecords,
-                        stopwatch.ElapsedMilliseconds
-                    );
+                    _logger.LogInformation(result.Message);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(
                         ex,
-                        "Error during receipt processing. Processed {Processed}/{Total}.",
+                        "Unexpected error during receipt processing. Processed {Processed}/{Total}.",
                         result.SyncedRecords,
                         result.TotalRecords
                     );
@@ -106,23 +99,23 @@ public class ReceiptSyncService : IReceiptSyncService
 
                     result.Success = false;
                     result.Message =
-                        $"Sync failed after processing {result.SyncedRecords}/{result.TotalRecords} : {ex.Message}";
-                    throw;
+                        $"Unexpected error during; failed after processing {result.SyncedRecords}/{result.TotalRecords}";
+                    throw new ReceiptSyncException(result.Message, ex);
                 }
             }
             catch (SapApiExceptionDto sapEx)
             {
                 result.Success = false;
-                result.Message = $"SAP API error: {sapEx.Message}";
-                _logger.LogError(sapEx, "SAP API error during receipt sync");
+                result.Message = sapEx.Message;
+                _logger.LogError(sapEx.InnerException, result.Message);
                 throw;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.Message = $"Unexpected error: {ex.Message}";
-                _logger.LogError(ex, "Unexpected error during receipt sync");
-                throw new ReceiptSyncException($"Receipt sync failed: {ex.Message}", ex);
+                result.Message = $"Unexpected error during receipt sync";
+                _logger.LogError(ex, result.Message);
+                throw new ReceiptSyncException(result.Message, ex);
             }
             finally
             {
@@ -167,6 +160,13 @@ public class ReceiptSyncService : IReceiptSyncService
                         sapResult.E_REASON
                     );
                 }
+            }
+            catch (SapApiExceptionDto sapEx)
+            {
+                result.Success = false;
+                result.Message = sapEx.Message;
+                _logger.LogError(sapEx.InnerException, result.Message);
+                throw;
             }
             catch (Exception ex)
             {

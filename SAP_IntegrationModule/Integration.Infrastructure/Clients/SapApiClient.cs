@@ -64,8 +64,10 @@ public class SapApiClient : ISapClient
                 "application/json"
             );
             var endpoint = $"/sap/opu/odata/sap/ZCUSTOMER_MASTER_SRV/CustomerSet";
-            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
 
+            var response = await _retryPolicy.ExecuteAsync(() =>
+                _httpClient.PostAsync(endpoint, content)
+            );
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -81,8 +83,7 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching customer data from SAP");
-            throw new SapApiExceptionDto($"SAP Customer API call failed: {ex.Message}", ex);
+            throw new SapApiExceptionDto($"SAP Customer API call failed", ex);
         }
     }
 
@@ -108,8 +109,10 @@ public class SapApiClient : ISapClient
                 "application/json"
             );
             var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_MASTER_SRV/MaterialSet";
-            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
 
+            var response = await _retryPolicy.ExecuteAsync(() =>
+                _httpClient.PostAsync(endpoint, content)
+            );
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -125,8 +128,7 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching material data from SAP");
-            throw new SapApiExceptionDto($"SAP Material API call failed: {ex.Message}", ex);
+            throw new SapApiExceptionDto($"SAP Material API call failed", ex);
         }
     }
 
@@ -178,8 +180,10 @@ public class SapApiClient : ISapClient
                 "application/json"
             );
             var endpoint = $"/sap/opu/odata/sap/ZReceipt/ReceiptSet";
-            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
 
+            var response = await _retryPolicy.ExecuteAsync(() =>
+                _httpClient.PostAsync(endpoint, content)
+            );
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -193,8 +197,7 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending receipt data to SAP");
-            throw new SapApiExceptionDto($"SAP receipt API call failed: {ex.Message}", ex);
+            throw new SapApiExceptionDto($"SAP receipt API call failed", ex);
         }
     }
 
@@ -210,8 +213,10 @@ public class SapApiClient : ISapClient
                 "application/json"
             );
             var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_STOCK/MaterialStockSet";
-            var response = await _retryPolicy.ExecuteAsync(() => _httpClient.GetAsync(endpoint));
 
+            var response = await _retryPolicy.ExecuteAsync(() =>
+                _httpClient.PostAsync(endpoint, content)
+            );
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -225,8 +230,7 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching material stock data from SAP");
-            throw new SapApiExceptionDto($"SAP Material stock API call failed: {ex.Message}", ex);
+            throw new SapApiExceptionDto($"SAP Material stock API call failed", ex);
         }
     }
 }

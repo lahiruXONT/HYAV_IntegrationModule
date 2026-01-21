@@ -28,15 +28,10 @@ public sealed class MaterialMappingHelper
 
     public async Task<Product> MapSapToXontMaterialAsync(SapMaterialResponseDto sapMaterial)
     {
-        await ValidateSapMaterialAsync(sapMaterial);
+        var businessUnit = await ValidateSapMaterialAndGetBusinessUnitAsync(sapMaterial);
 
         try
         {
-            var businessUnit = await _businessUnitResolver.ResolveBusinessUnitAsync(
-                sapMaterial.SalesOrganization ?? "",
-                sapMaterial.Division ?? ""
-            );
-
             var product = new Product
             {
                 // Mandatory fields
@@ -95,7 +90,9 @@ public sealed class MaterialMappingHelper
         }
     }
 
-    private async Task ValidateSapMaterialAsync(SapMaterialResponseDto sapMaterial)
+    private async Task<string> ValidateSapMaterialAndGetBusinessUnitAsync(
+        SapMaterialResponseDto sapMaterial
+    )
     {
         if (sapMaterial == null)
             throw new ArgumentNullException(nameof(sapMaterial));
@@ -108,28 +105,41 @@ public sealed class MaterialMappingHelper
         if (string.IsNullOrWhiteSpace(sapMaterial.MaterialDescription))
             errors.Add("Material description is required");
 
-        if (string.IsNullOrWhiteSpace(sapMaterial.SalesOrganization))
+        var result = await _businessUnitResolver.TryResolveBusinessUnitAsync(
+            sapMaterial.SalesOrganization,
+            sapMaterial.Division
+        );
+
+        if (!result.IsValid)
         {
-            errors.Add("Sales organization is required");
+            errors.Add(result.Error);
+            throw new ValidationExceptionDto(string.Join("; ", errors));
         }
 
-        if (
-            !string.IsNullOrWhiteSpace(sapMaterial.Division)
-            && !await _businessUnitResolver.SalesOrgDivisionExistsAsync(
-                sapMaterial.SalesOrganization,
-                sapMaterial.Division
-            )
-        )
-        {
-            errors.Add(
-                $"Business unit not found for SalesOrg: '{sapMaterial.SalesOrganization}' Division '{sapMaterial.Division}' not found "
-            );
-        }
+        var businessUnit = result.BusinessUnit;
+
+        if (string.IsNullOrWhiteSpace(sapMaterial.MaterialGroup1))
+            errors.Add("MaterialGroup1 is required");
+
+        if (string.IsNullOrWhiteSpace(sapMaterial.MaterialGroup2))
+            errors.Add("MaterialGroup2 is required");
+
+        if (string.IsNullOrWhiteSpace(sapMaterial.MaterialGroup3))
+            errors.Add("MaterialGroup3 is required");
+
+        if (string.IsNullOrWhiteSpace(sapMaterial.MaterialGroup4))
+            errors.Add("MaterialGroup4 is required");
+
+        if (string.IsNullOrWhiteSpace(sapMaterial.SalesUnit))
+            errors.Add("SalesUnit is required");
+
+        if (string.IsNullOrWhiteSpace(sapMaterial.BatchControlFlag))
+            errors.Add("BatchControlFlag is required");
+
         if (errors.Any())
-        {
-            var errorMessage = string.Join("; ", errors);
-            throw new ValidationExceptionDto(errorMessage);
-        }
+            throw new ValidationExceptionDto(string.Join("; ", errors));
+
+        return businessUnit;
     }
 
     public bool HasMaterialChanges(Product existing, Product updated)
