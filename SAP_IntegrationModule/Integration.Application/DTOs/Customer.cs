@@ -5,6 +5,7 @@ public sealed class SapCustomerResponseDto
     public string SalesOrganization { get; set; } = string.Empty;
     public string Distributionchannel { get; set; } = string.Empty;
     public string Division { get; set; } = string.Empty;
+    public string SalesOffice { get; set; } = string.Empty;
     public string Customer { get; set; } = string.Empty;
     public string CustomerName { get; set; } = string.Empty;
     public string HouseNo { get; set; } = string.Empty;

@@ -16,7 +16,6 @@ public class UserDbContext : DbContext
 
     //retailers
     public DbSet<GlobalRetailer> GlobalRetailers { get; set; }
-    public DbSet<TerritoryPostalCode> TerritoryPostalCodes { get; set; }
     public DbSet<Retailer> Retailers { get; set; }
     public DbSet<RetailerClassification> RetailerClassifications { get; set; }
 
@@ -27,6 +26,7 @@ public class UserDbContext : DbContext
     //other master data
     public DbSet<MasterDefinitionValue> MasterDefinitionValues { get; set; }
     public DbSet<MasterDefinition> MasterDefinitions { get; set; }
+    public DbSet<SettlementTerm> SettlementTerms { get; set; }
 
     //transactions
     public DbSet<Transaction> Transactions { get; set; }

@@ -46,8 +46,12 @@ public sealed class RetailerRepository : IRetailerRepository
     public Task<GlobalRetailer?> GetGlobalRetailerAsync(string code) =>
         _context.GlobalRetailers.FirstOrDefaultAsync(g => g.RetailerCode == code);
 
-    public Task<TerritoryPostalCode?> GetTerritoryCodeAsync(string postalCode) =>
-        _context.TerritoryPostalCodes.FirstOrDefaultAsync(t => t.PostalCode == postalCode);
+    public Task<SettlementTerm?> GetSettlementTermAsync(string BusinessUnit, string PaymentTerm) =>
+        _context.SettlementTerms.FirstOrDefaultAsync(t =>
+            t.BusinessUnit == BusinessUnit
+            && t.SAPSettlementTermsCode == PaymentTerm
+            && t.Status == "1"
+        );
 
     public async Task<(
         bool hasGeoChanges,
@@ -81,8 +85,12 @@ public sealed class RetailerRepository : IRetailerRepository
         return (hasGeoChanges, hasDistChannelChanges);
     }
 
-    public Task<bool> PostalCodeTerritoryExistsAsync(string postalCode) =>
-        _context.TerritoryPostalCodes.AnyAsync(t => t.PostalCode == postalCode);
+    public Task<bool> SettlementTermExistsAsync(string BusinessUnit, string PaymentTerm) =>
+        _context.SettlementTerms.AnyAsync(t =>
+            t.BusinessUnit == BusinessUnit
+            && t.SAPSettlementTermsCode == PaymentTerm
+            && t.Status == "1"
+        );
 
     public Task<bool> PostalCodeExistsForTownAsync(string businessUnit, string postalCode) =>
         _context.MasterDefinitionValues.AnyAsync(v =>
