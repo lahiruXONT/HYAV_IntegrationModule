@@ -50,7 +50,10 @@ public sealed class RequestLoggingMiddleware
                 ?.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>()
                 ?.ControllerName;
 
-            if (string.Equals(controllerName, "Auth", StringComparison.OrdinalIgnoreCase))
+            if (
+                context.Request.Path.StartsWithSegments("/swagger")
+                || string.Equals(controllerName, "Auth", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 await _next(context);
                 return;
