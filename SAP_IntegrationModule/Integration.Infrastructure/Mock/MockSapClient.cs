@@ -196,7 +196,8 @@ public sealed class MockSapClient : ISapClient
     }
 
     public async Task<List<GetMaterialStockFromSapResponseDto>> GetLocationStockDetails(
-        GetMaterialStockFromSapRequestDto dto)
+        GetMaterialStockFromSapRequestDto dto
+    )
     {
         // Simulate async delay to mimic real API call
         await Task.Delay(100);
@@ -216,5 +217,4 @@ public sealed class MockSapClient : ISapClient
 
         return results;
     }
-
 }

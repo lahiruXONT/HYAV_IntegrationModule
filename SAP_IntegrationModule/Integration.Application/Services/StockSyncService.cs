@@ -29,7 +29,8 @@ public sealed class StockSyncService : IStockSyncService
     }
 
     public async Task<GetMaterialStockFromSapResponseDto> GetLocationStockDetailsAsync(
-        GetMaterialStockFromSapRequestDto request)
+        GetMaterialStockFromSapRequestDto request
+    )
     {
         var stopwatch = Stopwatch.StartNew();
         var correlationId = CorrelationContext.CorrelationId;
@@ -72,8 +73,7 @@ public sealed class StockSyncService : IStockSyncService
 
                     result.Success = true;
                     result.Message =
-                        $"Stock Record sync completed for Material Code"
-                        + result.Material;
+                        $"Stock Record sync completed for Material Code" + result.Material;
                 }
                 catch (Exception ex)
                 {

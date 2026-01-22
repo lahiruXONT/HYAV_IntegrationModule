@@ -171,7 +171,8 @@ public class SapApiClient : ISapClient
     }
 
     public async Task<List<GetMaterialStockFromSapResponseDto>> GetLocationStockDetails(
-        GetMaterialStockFromSapRequestDto dto)
+        GetMaterialStockFromSapRequestDto dto
+    )
     {
         var endpoint = "/sap/opu/odata/sap/MaterialStock";
         var content = new StringContent(
@@ -186,7 +187,10 @@ public class SapApiClient : ISapClient
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<GetMaterialStockFromSapResponseDto>(json, _jsonOptions);
+        return JsonSerializer.Deserialize<List<GetMaterialStockFromSapResponseDto>>(
+            json,
+            _jsonOptions
+        );
     }
 
     public async Task<SAPReceiptResponseDto> SendReceiptAsync(ReceiptRequestDto request)
