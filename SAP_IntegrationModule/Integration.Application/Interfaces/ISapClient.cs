@@ -10,4 +10,7 @@ public interface ISapClient
     Task<StockOutSapResponseDto> GetStockOutTransactionDetails(StockOutSapRequestDto dto);
     Task<List<GetMaterialStockFromSapResponseDto>> GetLocationStockDetails(GetMaterialStockFromSapRequestDto dto);
     Task<SAPReceiptResponseDto> SendReceiptAsync(ReceiptRequestDto request);
+    Task<SapMaterialStockSyncResponseDto?> GetMaterialStockAsync(
+        XontMaterialStockSyncRequestDto request
+    );
 }

@@ -1,4 +1,5 @@
-﻿using Integration.Application.Interfaces;
+﻿using Integration.Application.DTOs;
+using Integration.Application.Interfaces;
 using Integration.Domain.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -22,15 +23,17 @@ public sealed class BusinessUnitResolveHelper
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<string> ResolveBusinessUnitAsync(string salesOrg, string division)
+    public async Task<(
+        bool IsValid,
+        string BusinessUnit,
+        string Error
+    )> TryResolveBusinessUnitAsync(string salesOrg, string division)
     {
         if (string.IsNullOrWhiteSpace(salesOrg))
-            throw new ArgumentException(
-                "Sales Organization cannot be null or empty",
-                nameof(salesOrg)
-            );
+            return (false, string.Empty, "Sales organization is required");
+
         if (string.IsNullOrWhiteSpace(division))
-            throw new ArgumentException("Division cannot be null or empty", nameof(division));
+            return (false, string.Empty, "Division is required");
 
         try
         {
@@ -41,22 +44,27 @@ public sealed class BusinessUnitResolveHelper
 
             if (businessUnit == null || string.IsNullOrWhiteSpace(businessUnit.BusinessUnit))
             {
-                var errorMessage =
-                    $"No active business unit found for  Sales Organization: '{salesOrg}' Division: '{division}'";
-                _logger.LogError(errorMessage);
-                throw new InvalidOperationException(errorMessage);
+                return (
+                    false,
+                    string.Empty,
+                    $"No business unit found for Sales Organization: '{salesOrg}' Division: '{division}'"
+                );
             }
-            return businessUnit.BusinessUnit;
+
+            return (true, businessUnit.BusinessUnit, string.Empty);
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Error resolving business unit for  Sales Organization: '{salesOrg}' Division: {Division}",
+                "Error resolving business unit for SalesOrg: {SalesOrg}, Division: {Division}",
                 salesOrg,
                 division
             );
-            throw;
+            throw new BusinessUnitResolveException(
+                $"Error resolving business unit for SalesOrg: {salesOrg}, Division: {division}",
+                ex
+            );
         }
     }
 
@@ -115,27 +123,6 @@ public sealed class BusinessUnitResolveHelper
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking if division exists: {Division}", division);
-            throw;
-        }
-    }
-
-    public async Task<bool> BusinessUnitExistsAsync(string businessUnitCode)
-    {
-        if (string.IsNullOrWhiteSpace(businessUnitCode))
-            return false;
-
-        try
-        {
-            var unit = await _businessUnitRepository.GetBusinessUnitByCodeAsync(businessUnitCode);
-            return unit != null && !string.IsNullOrWhiteSpace(unit.BusinessUnit);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Error checking if business unit exists: {Code}",
-                businessUnitCode
-            );
             throw;
         }
     }

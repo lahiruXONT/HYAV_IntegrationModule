@@ -14,12 +14,10 @@ namespace Integration.Infrastructure.Repositories;
 public class BusinessUnitRepository : IBusinessUnitRepository
 {
     private readonly SystemDbContext _context;
-    private readonly ILogger<BusinessUnitRepository> _logger;
 
-    public BusinessUnitRepository(SystemDbContext context, ILogger<BusinessUnitRepository> logger)
+    public BusinessUnitRepository(SystemDbContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public Task<List<ZYBusinessUnit>> GetAllActiveBusinessUnitsAsync() =>

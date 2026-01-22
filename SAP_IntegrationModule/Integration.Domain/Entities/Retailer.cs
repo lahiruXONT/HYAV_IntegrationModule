@@ -24,8 +24,8 @@ public sealed class Retailer : BaseAuditableEntity
     public string CurrencyProcessingRequired { get; set; } = string.Empty;
 
     public string BusinessUnit { get; set; } = string.Empty;
-    public string DistributionChannel { get; set; } = string.Empty;
     public string SAPSettlementTermsCode { get; set; } = string.Empty;
+    public string SettlementTermsCode { get; set; } = string.Empty;
     public string PaymentMethodCode { get; set; } = string.Empty;
 
     public string? ContactName { get; set; }

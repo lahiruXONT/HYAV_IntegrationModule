@@ -104,3 +104,26 @@ public sealed class ReceiptSyncException : Exception
         DocumentNumberSystem = receiptNo;
     }
 }
+
+public sealed class MaterialStockSyncException : Exception
+{
+    public string MaterialCode { get; }
+
+    public MaterialStockSyncException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        MaterialCode = string.Empty;
+    }
+
+    public MaterialStockSyncException(string message, string materialCode, Exception innerException)
+        : base(message, innerException)
+    {
+        MaterialCode = materialCode;
+    }
+}
+
+public sealed class BusinessUnitResolveException : Exception
+{
+    public BusinessUnitResolveException(string message, Exception innerException)
+        : base(message, innerException) { }
+}

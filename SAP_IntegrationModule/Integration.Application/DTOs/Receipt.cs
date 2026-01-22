@@ -38,7 +38,7 @@ public class ReceiptItem
 
 public sealed class XontReceiptSyncRequestDto
 {
-    public List<long> IDs { get; set; }
+    public List<long> IDs { get; set; } = new List<long>();
 }
 
 public sealed class ReceiptSyncResultDto
