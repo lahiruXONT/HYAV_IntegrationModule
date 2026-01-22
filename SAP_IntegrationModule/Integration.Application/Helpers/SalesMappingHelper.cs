@@ -28,11 +28,17 @@ public sealed class SalesMappingHelper
     {
         try
         {
+            string distributionChannel =
+                await _salesRepository.GetDistributionChannelForCustomerAsync(
+                    order.BusinessUnit,
+                    order.RetailerCode
+                ) ?? string.Empty;
+
             var salesOrderRequestDto = new SalesOrderRequestDto
             {
                 OrderType = "Test" ?? string.Empty,
                 SalesOrg = order?.SalesOrganization?.Trim() ?? string.Empty,
-                //DistributionChannel = order?.DistributionChannel?.Trim() ?? string.Empty,
+                DistributionChannel = distributionChannel,
                 Division = order?.BusinessUnit?.Trim() ?? string.Empty,
                 SalesOffice = order?.TerritoryCode?.Trim() ?? string.Empty,
                 SalesGroup = order?.SalesCategoryCode?.Trim() ?? string.Empty,

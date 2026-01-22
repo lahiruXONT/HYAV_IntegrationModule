@@ -1,8 +1,10 @@
-﻿using Integration.Domain.Entities;
+﻿using Integration.Application.DTOs;
+using Integration.Domain.Entities;
 
 namespace Integration.Application.Interfaces;
 
 public interface IStockRepository
 {
     Task UpdateStockTransactionAsync(StockTransaction stock);
+    Task<StockInXontResponseDto> GetStockInTransactionDetails(StockInXontRequestDto stock);
 }

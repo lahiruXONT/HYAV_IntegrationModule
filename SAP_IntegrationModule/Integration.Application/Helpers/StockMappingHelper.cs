@@ -17,9 +17,7 @@ public sealed class StockMappingHelper
             stockRepository ?? throw new ArgumentNullException(nameof(stockRepository));
     }
 
-    public async Task<StockTransaction> MapSapToXontStockTransactionAsync(
-        StockOutSapResponseDto stock
-    )
+    public StockTransaction MapSapToXontStockTransactionAsync(StockOutSapResponseDto stock)
     {
         try
         {
@@ -27,7 +25,7 @@ public sealed class StockMappingHelper
             {
                 // Business context
                 BusinessUnit = stock.Division ?? string.Empty,
-                TerritoryCode = "DEFAULT-TERR", // Hardcoded or mapped from Division/Plant if you have rules
+                TerritoryCode = "ABCD", // Hardcoded or mapped from Division/Plant if you have rules
                 TransactionCode = 7, // Example: Outbound transaction code
 
                 // Dates
@@ -62,14 +60,14 @@ public sealed class StockMappingHelper
                 MovementReference = stock.ReceivingBatch ?? string.Empty,
                 TransactionReference = stock.MaterialDocumentNumber ?? string.Empty,
                 MovementReason = "Stock Out",
-                TrnType = "OUT",
+                TrnType = "9",
 
                 // Defaults
                 Status = "1",
                 PdaTransaction = "0",
             };
 
-            await ValidateXontStockTransactionAsync(stockTransaction);
+            ValidateXontStockTransactionAsync(stockTransaction);
             return stockTransaction;
         }
         catch (Exception ex)
@@ -86,7 +84,39 @@ public sealed class StockMappingHelper
         }
     }
 
-    private async Task ValidateXontStockTransactionAsync(StockTransaction stockTransaction)
+    public StockInSapRequestDto MapXontToSapStockTransactionAsync(StockInXontResponseDto stock)
+    {
+        try
+        {
+            var sapDto = new StockInSapRequestDto
+            {
+                HeaderText = stock.MaterialDocumentNumber ?? "",
+                PostingDate = stock.StockDetails.CreatedOn,
+            };
+
+            var itemDto = new StockInSapItemDto
+            {
+                Batch = stock.StockDetails.ProductCode,
+                Material = stock.StockDetails.ProductCode,
+                Quantity = stock.StockDetails.U1MovementQuantity,
+                ReceivingPlant = stock.StockDetails.WarehouseCode,
+                ReceivingStorageLoc = stock.StockDetails.LocationCode,
+                Reference = stock.StockDetails.TransactionReference,
+            };
+
+            sapDto.Items = new List<StockInSapItemDto> { itemDto };
+
+            //await ValidateXontStockTransactionAsync(sapDto);
+            return sapDto;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to map to SAP Dto");
+            throw;
+        }
+    }
+
+    private void ValidateXontStockTransactionAsync(StockTransaction stockTransaction)
     {
         //if (sapOrder == null)
         //    throw new ValidationExceptionDto("SAP order data cannot be null");

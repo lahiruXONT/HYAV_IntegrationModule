@@ -8,6 +8,10 @@ public interface ISalesRepository
     //Task CommitTransactionAsync();
     //Task RollbackTransactionAsync();
     Task<List<SalesOrderHeader>> GetXontSalesOrderAsync(DateTime currentDate);
+    public Task<string?> GetDistributionChannelForCustomerAsync(
+        string businessUnit,
+        string customerCode
+    );
     Task<SalesOrderHeader?> UpdateOrderStatusAsync(SalesOrderHeader order);
 
     //Task<SalesOrderSyncResultDto?> SyncXontSalesOrdersToSapAsync(SalesOrderHeader order);

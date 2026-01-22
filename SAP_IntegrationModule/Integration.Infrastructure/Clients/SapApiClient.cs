@@ -154,6 +154,25 @@ public class SapApiClient : ISapClient
         return JsonSerializer.Deserialize<StockOutSapResponseDto>(json, _jsonOptions);
     }
 
+    public async Task<List<GetMaterialStockFromSapResponseDto>> GetLocationStockDetails(
+        GetMaterialStockFromSapRequestDto dto)
+    {
+        var endpoint = "/sap/opu/odata/sap/MaterialStock";
+        var content = new StringContent(
+            JsonSerializer.Serialize(dto, _jsonOptions),
+            Encoding.UTF8,
+            "application/json"
+        );
+
+        var response = await _retryPolicy.ExecuteAsync(() =>
+            _httpClient.PostAsync(endpoint, content)
+        );
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<GetMaterialStockFromSapResponseDto>(json, _jsonOptions);
+    }
+
     public async Task<SAPReceiptResponseDto> SendReceiptAsync(ReceiptRequestDto request)
     {
         try

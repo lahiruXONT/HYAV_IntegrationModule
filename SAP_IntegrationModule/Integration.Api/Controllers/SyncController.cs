@@ -54,6 +54,15 @@ public sealed class SyncController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("stockin")]
+    public async Task<ActionResult<StockInSapResponseDto>> SyncStockIn(
+        [FromBody] StockInXontRequestDto request
+    )
+    {
+        var result = await _stockSyncService.SyncStockInFromXontAsync(request);
+        return Ok(result);
+    }
+
     [HttpPost("receipt")]
     public async Task<ActionResult<ReceiptSyncResultDto>> SyncReceiptToSAP(
         [FromBody] XontReceiptSyncRequestDto request

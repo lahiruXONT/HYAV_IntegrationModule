@@ -53,6 +53,22 @@ public sealed class SalesRepository : ISalesRepository, IAsyncDisposable
             .ToListAsync();
     }
 
+    public Task<string?> GetDistributionChannelForCustomerAsync(
+        string businessUnit,
+        string customerCode
+    )
+    {
+        return _context
+            .RetailerClassifications.Where(rc =>
+                rc.BusinessUnit == businessUnit
+                && rc.RetailerCode == customerCode
+                && rc.MasterGroup == "DISTCHNL"
+                && rc.Status == "1"
+            )
+            .Select(rc => rc.MasterGroupValue)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<SalesOrderHeader?> UpdateOrderStatusAsync(SalesOrderHeader order)
     {
         order.IntegratedStatus = "1";
