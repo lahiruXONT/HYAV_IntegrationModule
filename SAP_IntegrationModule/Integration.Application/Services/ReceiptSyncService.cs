@@ -88,14 +88,14 @@ public class ReceiptSyncService : IReceiptSyncService
                 {
                     _logger.LogError(
                         ex,
-                        "Transaction failed during receipt processing. Processed {Processed}/{Total}.",
+                        "Unexpected error during receipt processing. Processed {Processed}/{Total}.",
                         result.SyncedRecords,
                         result.TotalRecords
                     );
 
                     result.Success = false;
                     result.Message =
-                        $"Transaction failed during receipt sync; failed after processing {result.SyncedRecords}/{result.TotalRecords}"
+                        $"Unexpected error during receipt sync; failed after processing {result.SyncedRecords}/{result.TotalRecords}"
                         + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
                         + (
                             !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
