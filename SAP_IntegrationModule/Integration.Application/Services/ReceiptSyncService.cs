@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using Azure.Core;
 using Integration.Application.DTOs;
 using Integration.Application.Helpers;
 using Integration.Application.Interfaces;
@@ -34,7 +33,7 @@ public class ReceiptSyncService : IReceiptSyncService
     {
         var stopwatch = Stopwatch.StartNew();
         var correlationId = CorrelationContext.CorrelationId;
-        var result = new ReceiptSyncResultDto { SyncDate = DateTime.UtcNow };
+        var result = new ReceiptSyncResultDto { SyncDate = DateTime.Now };
 
         using (
             _logger.BeginScope(
@@ -49,7 +48,7 @@ public class ReceiptSyncService : IReceiptSyncService
         {
             try
             {
-                _logger.LogInformation("Starting Receipt sync : {Date} ", result.SyncDate);
+                _logger.LogInformation("Starting Receipt sync : {Date}", result.SyncDate);
 
                 var pendingReceipts = await _transactionsRepository.GetUnsyncedReceiptsAsync(
                     request.IDs
@@ -60,46 +59,49 @@ public class ReceiptSyncService : IReceiptSyncService
                 if (pendingReceipts == null || !pendingReceipts.Any())
                 {
                     result.Success = true;
-                    result.Message = "No receipts found";
-                    _logger.LogInformation("No receipts found : {Date}", result.SyncDate);
+                    result.Message = "No pending receipts found for synchronization";
+                    _logger.LogInformation("No pending receipts found for synchronization");
                     return result;
                 }
 
                 _logger.LogInformation(
-                    "Pending {Count} recipts available to sync",
+                    "Found {Count} pending receipts to sync",
                     result.TotalRecords
                 );
 
-                //await _transactionsRepository.BeginTransactionAsync();
-
                 try
                 {
-                    foreach (var reciept in pendingReceipts)
+                    foreach (var receipt in pendingReceipts)
                     {
-                        await ProcessReceiptAsync(reciept, result);
+                        await ProcessReceiptAsync(receipt, result);
                     }
-
-                    //await _transactionsRepository.CommitTransactionAsync();
 
                     result.Success = true;
                     result.Message = BuildSuccessMessage(result);
 
-                    _logger.LogInformation(result.Message);
+                    _logger.LogInformation(
+                        "Receipt sync completed successfully: {@Result}",
+                        result
+                    );
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(
                         ex,
-                        "Unexpected error during receipt processing. Processed {Processed}/{Total}.",
+                        "Transaction failed during receipt processing. Processed {Processed}/{Total}.",
                         result.SyncedRecords,
                         result.TotalRecords
                     );
 
-                    //await _transactionsRepository.RollbackTransactionAsync();
-
                     result.Success = false;
                     result.Message =
-                        $"Unexpected error during; failed after processing {result.SyncedRecords}/{result.TotalRecords}";
+                        $"Transaction failed during receipt sync; failed after processing {result.SyncedRecords}/{result.TotalRecords}"
+                        + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                        + (
+                            !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                                ? $"; {ex.InnerException.Message}"
+                                : ""
+                        );
                     throw new ReceiptSyncException(result.Message, ex);
                 }
             }
@@ -107,14 +109,25 @@ public class ReceiptSyncService : IReceiptSyncService
             {
                 result.Success = false;
                 result.Message = sapEx.Message;
-                _logger.LogError(sapEx.InnerException, result.Message);
+                _logger.LogError(
+                    sapEx.InnerException,
+                    "SAP API error during receipt sync: {Message}",
+                    sapEx.Message
+                );
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not ReceiptSyncException)
             {
                 result.Success = false;
-                result.Message = $"Unexpected error during receipt sync";
-                _logger.LogError(ex, result.Message);
+                result.Message =
+                    $"Unexpected error during receipt sync"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
+                _logger.LogError(ex, "Unexpected error during receipt sync");
                 throw new ReceiptSyncException(result.Message, ex);
             }
             finally
@@ -141,6 +154,12 @@ public class ReceiptSyncService : IReceiptSyncService
         {
             try
             {
+                _logger.LogDebug(
+                    "Processing receipt: {BusinessUnit} ,{DocumentNumberSystem}",
+                    receipt.BusinessUnit,
+                    receipt.DocumentNumberSystem
+                );
+
                 var sapReceipt = await _mappingHelper.MapXontTransactionToSapReceiptAsync(receipt);
 
                 var sapResult = await _sapClient.SendReceiptAsync(sapReceipt);
@@ -150,40 +169,70 @@ public class ReceiptSyncService : IReceiptSyncService
                     receipt.IntegratedStatus = "1";
                     receipt.IntegratedOn = DateTime.Now;
                     receipt.SAPDocumentNumber = sapResult.DOCUMENT_NUMBER;
+
                     await _transactionsRepository.UpdateTransactionAsync(receipt);
+
+                    result.SyncedRecords++;
+                    _logger.LogInformation(
+                        "Successfully processed receipt {BusinessUnit}, {DocumentNumberSystem} with SAP doc number {SAPDocumentNumber}",
+                        receipt.BusinessUnit,
+                        receipt.DocumentNumberSystem,
+                        sapResult.DOCUMENT_NUMBER
+                    );
                 }
                 else
                 {
-                    _logger.LogError(
-                        "Error processing receipt {number} : {sapMessage}",
-                        receipt.DocumentNumberSystem,
-                        sapResult.E_REASON
-                    );
+                    var errorMessage =
+                        $"SAP rejected receipt {receipt.BusinessUnit}, {receipt.DocumentNumberSystem}: {sapResult.E_REASON}";
+                    _logger.LogError(errorMessage);
+                    result.Errors ??= new List<string>();
+                    result.Errors.Add(errorMessage);
+                    result.FailedRecords++;
                 }
             }
             catch (SapApiExceptionDto sapEx)
             {
                 result.Success = false;
                 result.Message = sapEx.Message;
-                _logger.LogError(sapEx.InnerException, result.Message);
+                _logger.LogError(
+                    sapEx.InnerException,
+                    "SAP API error processing receipt {BusinessUnit} {DocumentNumberSystem}: {Message}",
+                    receipt.BusinessUnit,
+                    receipt.DocumentNumberSystem,
+                    sapEx.Message
+                );
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not ReceiptSyncException)
             {
                 _logger.LogError(
                     ex,
-                    "Error processing receipt {number} ",
+                    "Error processing receipt {BusinessUnit} , {DocumentNumberSystem}",
+                    receipt.BusinessUnit,
                     receipt.DocumentNumberSystem
                 );
                 result.FailedRecords += 1;
-                throw;
+                result.Message =
+                    $"Receipt {receipt.BusinessUnit}, {receipt.DocumentNumberSystem}"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
+
+                throw new ReceiptSyncException(
+                    result.Message,
+                    receipt.DocumentNumberSystem.ToString(),
+                    ex
+                );
             }
         }
     }
 
     private string BuildSuccessMessage(ReceiptSyncResultDto result)
     {
-        var message = $"Customer sync completed. ";
+        var message = "Receipt sync completed successfully. ";
 
         if (result.SyncedRecords > 0)
             message += $"Success: {result.SyncedRecords}. ";

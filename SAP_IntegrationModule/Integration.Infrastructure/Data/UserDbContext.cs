@@ -15,12 +15,12 @@ public class UserDbContext : DbContext
     public DbSet<ErrorLog> ErrorLogs { get; set; }
 
     //retailers
-    public DbSet<GlobalRetailer> GlobalRetailers { get; set; }
+    //public DbSet<GlobalRetailer> GlobalRetailers { get; set; }
     public DbSet<Retailer> Retailers { get; set; }
     public DbSet<RetailerClassification> RetailerClassifications { get; set; }
 
     //products
-    public DbSet<GlobalProduct> GlobalProducts { get; set; }
+    //public DbSet<GlobalProduct> GlobalProducts { get; set; }
     public DbSet<Product> Products { get; set; }
 
     //other master data
@@ -44,6 +44,9 @@ public class UserDbContext : DbContext
 
     //Stock
     public DbSet<StockTransaction> StockTransactions { get; set; }
+
+    //ERP Invoiced Order
+    public DbSet<ERPInvoicedOrderDetail> ERPInvoicedOrderDetails { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

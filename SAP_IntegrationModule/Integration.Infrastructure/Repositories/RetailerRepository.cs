@@ -2,53 +2,43 @@
 using Integration.Domain.Entities;
 using Integration.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
 
 public sealed class RetailerRepository : IRetailerRepository
 {
     private readonly UserDbContext _context;
-    private IDbContextTransaction? _transaction;
     private readonly IMemoryCache _cache;
     private readonly HashSet<string> _geoCacheKeys = new();
 
     public RetailerRepository(UserDbContext context, IMemoryCache cache)
     {
-        _context = context;
-        _cache = cache;
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
     }
 
-    //public async Task BeginTransactionAsync() =>
-    //    _transaction = await _context.Database.BeginTransactionAsync();
-
-    //public async Task CommitTransactionAsync()
-    //{
-    //    await _context.SaveChangesAsync();
-    //    await _transaction!.CommitAsync();
-    //    await _transaction.DisposeAsync();
-    //    _transaction = null;
-    //}
-
-    //public async Task RollbackTransactionAsync()
-    //{
-    //    if (_transaction != null)
-    //    {
-    //        await _transaction.RollbackAsync();
-    //        await _transaction.DisposeAsync();
-    //        _transaction = null;
-    //    }
-    //    _context.ChangeTracker.Clear();
-    //}
+    public async Task ExecuteInTransactionAsync(Func<Task> operation)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await operation();
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
 
     public Task<Retailer?> GetByRetailerCodeAsync(string code, string bu) =>
         _context.Retailers.FirstOrDefaultAsync(r => r.RetailerCode == code && r.BusinessUnit == bu);
 
-    public Task<GlobalRetailer?> GetGlobalRetailerAsync(string code) =>
-        _context.GlobalRetailers.FirstOrDefaultAsync(g => g.RetailerCode == code);
-
     public Task<SettlementTerm?> GetSettlementTermAsync(string BusinessUnit, string PaymentTerm) =>
         _context.SettlementTerms.FirstOrDefaultAsync(t =>
             t.BusinessUnit == BusinessUnit
+            && t.SourceModuleCode == "RD"
             && t.SAPSettlementTermsCode == PaymentTerm
             && t.Status == "1"
         );
@@ -88,6 +78,7 @@ public sealed class RetailerRepository : IRetailerRepository
     public Task<bool> SettlementTermExistsAsync(string BusinessUnit, string PaymentTerm) =>
         _context.SettlementTerms.AnyAsync(t =>
             t.BusinessUnit == BusinessUnit
+            && t.SourceModuleCode == "RD"
             && t.SAPSettlementTermsCode == PaymentTerm
             && t.Status == "1"
         );
@@ -116,9 +107,9 @@ public sealed class RetailerRepository : IRetailerRepository
         await _context.Retailers.AddAsync(retailer);
     }
 
-    public async Task CreateGlobalRetailerAsync(GlobalRetailer retailer)
+    public async Task UpdateRetailerAsync(Retailer retailer)
     {
-        await _context.GlobalRetailers.AddAsync(retailer);
+        _context.Retailers.Update(retailer);
     }
 
     public async Task AddOrUpdateRetailerGeographicDataAsync(
@@ -127,6 +118,11 @@ public sealed class RetailerRepository : IRetailerRepository
         string postalCode
     )
     {
+        if (string.IsNullOrWhiteSpace(postalCode))
+        {
+            return;
+        }
+
         var existingClassifications = await _context
             .RetailerClassifications.Where(rc =>
                 rc.BusinessUnit == businessUnit
@@ -173,9 +169,9 @@ public sealed class RetailerRepository : IRetailerRepository
                 MasterGroupValueDescription = h.MasterGroupValueDescription,
                 GroupType = h.GroupType,
                 Status = "1",
-                CreatedOn = DateTime.UtcNow,
+                CreatedOn = DateTime.Now,
                 CreatedBy = "SAP_SYNC",
-                UpdatedOn = DateTime.UtcNow,
+                UpdatedOn = DateTime.Now,
                 UpdatedBy = "SAP_SYNC",
             })
             .ToList();
@@ -189,6 +185,11 @@ public sealed class RetailerRepository : IRetailerRepository
         string distributionchannel
     )
     {
+        if (string.IsNullOrWhiteSpace(distributionchannel))
+        {
+            return;
+        }
+
         var existingChannels = await _context
             .RetailerClassifications.Where(rc =>
                 rc.BusinessUnit == businessUnit
@@ -201,6 +202,7 @@ public sealed class RetailerRepository : IRetailerRepository
         {
             _context.RetailerClassifications.RemoveRange(existingChannels);
         }
+
         var distChannelDefinitionValues = await _context
             .MasterDefinitionValues.Where(v =>
                 v.BusinessUnit == businessUnit
@@ -209,24 +211,31 @@ public sealed class RetailerRepository : IRetailerRepository
                 && v.Status == "1"
             )
             .FirstOrDefaultAsync();
+
+        if (distChannelDefinitionValues == null)
+        {
+            return;
+        }
+
         var distChannelDefinition = await _context
             .MasterDefinitions.Where(v =>
                 v.BusinessUnit == businessUnit && v.MasterGroup == "DISTCHNL" && v.Status == "1"
             )
             .FirstOrDefaultAsync();
+
         var newChannel = new RetailerClassification
         {
             BusinessUnit = businessUnit,
             RetailerCode = retailerCode,
             MasterGroup = distChannelDefinitionValues.MasterGroup,
-            MasterGroupDescription = distChannelDefinition.GroupDescription,
+            MasterGroupDescription = distChannelDefinition?.GroupDescription ?? "",
             MasterGroupValue = distChannelDefinitionValues.MasterGroupValue,
             MasterGroupValueDescription = distChannelDefinitionValues.MasterGroupValueDescription,
             GroupType = distChannelDefinitionValues.GroupType,
             Status = "1",
-            CreatedOn = DateTime.UtcNow,
+            CreatedOn = DateTime.Now,
             CreatedBy = "SAP_SYNC",
-            UpdatedOn = DateTime.UtcNow,
+            UpdatedOn = DateTime.Now,
             UpdatedBy = "SAP_SYNC",
         };
         await _context.RetailerClassifications.AddAsync(newChannel);
@@ -311,4 +320,18 @@ public sealed class RetailerRepository : IRetailerRepository
 
         return Task.CompletedTask;
     }
+
+    #region Global Retailer Methods(Commented Out)
+    //public Task<GlobalRetailer?> GetGlobalRetailerAsync(string code) =>
+    //    _context.GlobalRetailers.FirstOrDefaultAsync(g => g.RetailerCode == code);
+
+    //public async Task CreateGlobalRetailerAsync(GlobalRetailer retailer)
+    //{
+    //    await _context.GlobalRetailers.AddAsync(retailer);
+    //}
+    //public async Task UpdateGlobalRetailerAsync(GlobalRetailer retailer)
+    //{
+    //    await _context.GlobalRetailers.Update(retailer);
+    //}
+    #endregion
 }

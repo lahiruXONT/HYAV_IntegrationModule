@@ -12,13 +12,26 @@ public class OtherConfiguration
     public void Configure(EntityTypeBuilder<MasterDefinitionValue> entity)
     {
         entity.ToTable("MasterDefinitionValue", "XA");
-        entity.HasKey(e => e.RecordID).HasName($"PK_MasterDefinitionValue");
+        entity.HasKey(e => e.RecordID).HasName($"PK_RD_MasterDefinitionValue");
+        entity
+            .HasIndex(e => new
+            {
+                e.BusinessUnit,
+                e.MasterGroup,
+                e.MasterGroupValue,
+            })
+            .IsUnique()
+            .HasDatabaseName($"UK_RD_MasterDefinitionValue");
     }
 
     public void Configure(EntityTypeBuilder<MasterDefinition> entity)
     {
         entity.ToTable("MasterDefinition", "XA");
         entity.HasKey(e => e.RecordID).HasName($"PK_MasterDefinition");
+        entity
+            .HasIndex(e => new { e.BusinessUnit, e.MasterGroup })
+            .IsUnique()
+            .HasDatabaseName($"UK_RD_MasterDefinition");
     }
 
     public void Configure(EntityTypeBuilder<SettlementTerm> entity)

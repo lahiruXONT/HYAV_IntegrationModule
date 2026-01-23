@@ -127,3 +127,20 @@ public sealed class BusinessUnitResolveException : Exception
     public BusinessUnitResolveException(string message, Exception innerException)
         : base(message, innerException) { }
 }
+
+public sealed class InvoiceSyncException : Exception
+{
+    public string OrderNo { get; }
+
+    public InvoiceSyncException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        OrderNo = string.Empty;
+    }
+
+    public InvoiceSyncException(string message, string orderNo, Exception innerException)
+        : base(message, innerException)
+    {
+        OrderNo = orderNo;
+    }
+}

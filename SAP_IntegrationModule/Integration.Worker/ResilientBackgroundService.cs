@@ -58,7 +58,7 @@ public abstract class ResilientBackgroundService : BackgroundService
         using (LogContext.PushProperty("ExecutionId", executionId))
         {
             _state = BackgroundServiceState.Starting;
-            _healthMetrics.ServiceStartTime = DateTime.UtcNow;
+            _healthMetrics.ServiceStartTime = DateTime.Now;
 
             _logger.LogInformation(
                 "{ServiceName} starting with execution ID: {ExecutionId}",
@@ -80,7 +80,7 @@ public abstract class ResilientBackgroundService : BackgroundService
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                var cycleStartTime = DateTime.UtcNow;
+                var cycleStartTime = DateTime.Now;
                 options = _optionsMonitor.Get(_serviceName);
 
                 if (!options.IsEnabled)
@@ -99,16 +99,16 @@ public abstract class ResilientBackgroundService : BackgroundService
                     await ExecuteOnceAsync(stoppingToken);
 
                     _consecutiveFailures = 0;
-                    _lastSuccessfulRun = DateTime.UtcNow;
+                    _lastSuccessfulRun = DateTime.Now;
                     _healthMetrics.SuccessfulCycles++;
-                    _healthMetrics.LastSuccessfulRun = DateTime.UtcNow;
+                    _healthMetrics.LastSuccessfulRun = DateTime.Now;
 
                     var delay = CalculateNextRunDelay(options);
 
                     _logger.LogInformation(
                         "{ServiceName} completed successfully in {Duration}. Next run in {Delay}",
                         _serviceName,
-                        DateTime.UtcNow - cycleStartTime,
+                        DateTime.Now - cycleStartTime,
                         delay
                     );
 
@@ -128,12 +128,12 @@ public abstract class ResilientBackgroundService : BackgroundService
                 finally
                 {
                     _healthMetrics.TotalCycles++;
-                    _healthMetrics.LastRunDuration = DateTime.UtcNow - cycleStartTime;
+                    _healthMetrics.LastRunDuration = DateTime.Now - cycleStartTime;
                 }
             }
 
             _state = BackgroundServiceState.Stopped;
-            _healthMetrics.ServiceStopTime = DateTime.UtcNow;
+            _healthMetrics.ServiceStopTime = DateTime.Now;
 
             LogHealthMetrics();
             _logger.LogInformation("{ServiceName} stopped", _serviceName);
@@ -175,7 +175,7 @@ public abstract class ResilientBackgroundService : BackgroundService
                 _serviceName,
                 _consecutiveFailures,
                 options.MaxConsecutiveFailures,
-                DateTime.UtcNow - cycleStartTime
+                DateTime.Now - cycleStartTime
             );
 
             LogDetailedError(ex);
@@ -216,13 +216,13 @@ public abstract class ResilientBackgroundService : BackgroundService
         {
             try
             {
-                var today = DateTime.UtcNow.Date;
+                var today = DateTime.Now.Date;
                 var scheduled = today.Add(TimeSpan.Parse(options.DailyScheduleTime));
 
-                if (scheduled <= DateTime.UtcNow)
+                if (scheduled <= DateTime.Now)
                     scheduled = scheduled.AddDays(1);
 
-                return scheduled - DateTime.UtcNow;
+                return scheduled - DateTime.Now;
             }
             catch (FormatException)
             {

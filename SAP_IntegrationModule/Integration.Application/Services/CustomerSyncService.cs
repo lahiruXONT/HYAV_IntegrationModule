@@ -33,7 +33,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
     {
         var stopwatch = Stopwatch.StartNew();
         var correlationId = CorrelationContext.CorrelationId;
-        var result = new CustomerSyncResultDto { SyncDate = DateTime.UtcNow };
+        var result = new CustomerSyncResultDto { SyncDate = DateTime.Now };
 
         using (
             _logger.BeginScope(
@@ -53,8 +53,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 {
                     result.Success = false;
                     result.Message =
-                        $"Customer sync request Validation failed: {string.Join("; ", validationErrors)}";
-                    _logger.LogWarning(result.Message);
+                        $"Customer sync request validation failed: {string.Join("; ", validationErrors)}";
+                    _logger.LogWarning(
+                        "Customer sync validation failed: {ValidationErrors}",
+                        string.Join("; ", validationErrors)
+                    );
                     return result;
                 }
 
@@ -67,8 +70,11 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 if (sapCustomers == null || !sapCustomers.Any())
                 {
                     result.Success = true;
-                    result.Message = $"No customer changes found for  date: {request.Date}";
-                    _logger.LogInformation(result.Message);
+                    result.Message = $"No customer changes found for date: {request.Date}";
+                    _logger.LogInformation(
+                        "No customer changes found for date: {Date}",
+                        request.Date
+                    );
                     return result;
                 }
 
@@ -77,46 +83,69 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     result.TotalRecords
                 );
 
-                var customerGroups = sapCustomers.GroupBy(c => new { c.Customer }).ToList();
+                var customerGroups = sapCustomers.GroupBy(c => c.Customer).ToList();
                 var processedGroups = 0;
-                //await _customerRepository.BeginTransactionAsync();
 
                 try
                 {
                     foreach (var group in customerGroups)
                     {
-                        await ProcessCustomerGroupAsync(group.Key.Customer, group.ToList(), result);
+                        await ProcessCustomerGroupAsync(
+                            group.First().Customer,
+                            group.ToList(),
+                            result
+                        );
                         processedGroups++;
                     }
 
-                    //await _customerRepository.CommitTransactionAsync();
                     await _customerRepository.ClearGeoCacheAsync();
                     result.Success = true;
                     result.Message = BuildSuccessMessage(result);
 
-                    _logger.LogInformation(result.Message);
+                    _logger.LogInformation(
+                        "Customer sync completed successfully: {@Result}",
+                        result
+                    );
                 }
                 catch (Exception ex)
+                    when (ex is not CustomerSyncException && ex is not SapApiExceptionDto)
                 {
-                    _logger.LogError(ex, "Unexpected error during customer sync");
-                    //await _customerRepository.RollbackTransactionAsync();
+                    _logger.LogError(ex, "Unexpected error during customer sync processing");
                     result.Success = false;
-                    result.Message = $"Unexpected error during customer sync";
-                    throw new CustomerSyncException($"Unexpected error during customer sync", ex);
+                    result.Message =
+                        $"Unexpected error during customer sync"
+                        + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                        + (
+                            !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                                ? $"; {ex.InnerException.Message}"
+                                : ""
+                        );
+                    throw new CustomerSyncException(result.Message, ex);
                 }
             }
             catch (SapApiExceptionDto sapEx)
             {
                 result.Success = false;
                 result.Message = sapEx.Message;
-                _logger.LogError(sapEx.InnerException, result.Message);
+                _logger.LogError(
+                    sapEx,
+                    "SAP API error during customer sync: {Message}",
+                    sapEx.Message
+                );
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not CustomerSyncException)
             {
                 result.Success = false;
-                result.Message = $"Unexpected error during customer sync";
-                _logger.LogError(ex, result.Message);
+                result.Message =
+                    $"Unexpected error during customer sync"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
+                _logger.LogError(ex, "Unexpected error during customer sync");
                 throw new CustomerSyncException(result.Message, ex);
             }
             finally
@@ -208,6 +237,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 //)
                 //{
                 //    _mappingHelper.UpdateGlobalCustomer(globalCustomerExisting, globalCustomerObj);
+                //    await _customerRepository.UpdateGlobalRetailerAsync(globalCustomerExisting);
                 //    _logger.LogDebug(
                 //        "Updated global retailer: {RetailerCode}",
                 //        globalCustomerObj.RetailerCode
@@ -228,57 +258,66 @@ public sealed class CustomerSyncService : ICustomerSyncService
                             xontRetailer.BusinessUnit
                         );
 
-                        if (existing == null)
+                        await _customerRepository.ExecuteInTransactionAsync(async () =>
                         {
-                            await _customerRepository.CreateRetailerAsync(xontRetailer);
+                            if (existing == null)
+                            {
+                                await _customerRepository.CreateRetailerAsync(xontRetailer);
 
-                            await _customerRepository.AddOrUpdateRetailerGeographicDataAsync(
-                                xontRetailer.BusinessUnit,
-                                xontRetailer.RetailerCode,
-                                sapCustomer.PostalCode
-                            );
-                            await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
-                                xontRetailer.BusinessUnit,
-                                xontRetailer.RetailerCode,
-                                sapCustomer.Distributionchannel
-                            );
-                            result.NewCustomers++;
-                        }
-                        else
-                        {
-                            var (hasRetailerChanges, hasGeoChanges, hasDistChannelChanged) =
-                                await _mappingHelper.HasRetailerChanges(
-                                    existing,
-                                    xontRetailer,
-                                    sapCustomer.PostalCode,
-                                    sapCustomer.Distributionchannel
+                                await _customerRepository.AddOrUpdateRetailerGeographicDataAsync(
+                                    xontRetailer.BusinessUnit,
+                                    xontRetailer.RetailerCode,
+                                    sapCustomer.PostalCode ?? string.Empty
                                 );
 
-                            if (hasRetailerChanges || hasGeoChanges || hasDistChannelChanged)
-                            {
-                                if (hasRetailerChanges)
-                                    _mappingHelper.UpdateCustomer(existing, xontRetailer);
+                                await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
+                                    xontRetailer.BusinessUnit,
+                                    xontRetailer.RetailerCode,
+                                    sapCustomer.Distributionchannel ?? string.Empty
+                                );
 
-                                if (hasGeoChanges)
-                                    await _customerRepository.AddOrUpdateRetailerGeographicDataAsync(
-                                        xontRetailer.BusinessUnit,
-                                        xontRetailer.RetailerCode,
-                                        sapCustomer.PostalCode ?? ""
-                                    );
-
-                                if (hasDistChannelChanged)
-                                    await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
-                                        xontRetailer.BusinessUnit,
-                                        xontRetailer.RetailerCode,
-                                        sapCustomer.Distributionchannel
-                                    );
-                                result.UpdatedCustomers++;
+                                result.NewCustomers++;
                             }
                             else
                             {
-                                result.SkippedCustomers++;
+                                var (hasRetailerChanges, hasGeoChanges, hasDistChannelChanged) =
+                                    await _mappingHelper.HasRetailerChanges(
+                                        existing,
+                                        xontRetailer,
+                                        sapCustomer.PostalCode ?? string.Empty,
+                                        sapCustomer.Distributionchannel ?? string.Empty
+                                    );
+
+                                if (hasRetailerChanges)
+                                {
+                                    _mappingHelper.UpdateCustomer(existing, xontRetailer);
+                                    await _customerRepository.UpdateRetailerAsync(existing);
+                                }
+
+                                if (hasGeoChanges)
+                                {
+                                    await _customerRepository.AddOrUpdateRetailerGeographicDataAsync(
+                                        xontRetailer.BusinessUnit,
+                                        xontRetailer.RetailerCode,
+                                        sapCustomer.PostalCode ?? string.Empty
+                                    );
+                                }
+
+                                if (hasDistChannelChanged)
+                                {
+                                    await _customerRepository.AddOrUpdateRetailerDistributionChannelAsync(
+                                        xontRetailer.BusinessUnit,
+                                        xontRetailer.RetailerCode,
+                                        sapCustomer.Distributionchannel ?? string.Empty
+                                    );
+                                }
+
+                                if (hasRetailerChanges || hasGeoChanges || hasDistChannelChanged)
+                                    result.UpdatedCustomers++;
+                                else
+                                    result.SkippedCustomers++;
                             }
-                        }
+                        });
                     }
                     catch (ValidationExceptionDto valEx)
                     {
@@ -288,55 +327,47 @@ public sealed class CustomerSyncService : ICustomerSyncService
                             valEx.Message
                         );
                         result.FailedRecords++;
-                        result.ValidationErrors ??= new List<string>();
+                        result.ValidationErrors ??= new();
                         result.ValidationErrors.Add(
                             $"Customer {sapCustomer.Customer}: {valEx.Message}"
                         );
                     }
-                    catch (BusinessUnitResolveException valEx)
+                    catch (BusinessUnitResolveException buEx)
                     {
-                        _logger.LogWarning(valEx.Message);
-                        result.FailedRecords++;
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(
-                            ex,
-                            "Unexpected error during customer sync : {CustomerCode} ",
-                            sapCustomer.Customer
+                        _logger.LogWarning(
+                            "Business unit resolution failed: {Message}",
+                            buEx.Message
                         );
                         result.FailedRecords++;
-
-                        throw new CustomerSyncException(
-                            $"Unexpected error during customer sync : {sapCustomer.Customer}",
-                            sapCustomer.Customer,
-                            ex
-                        );
+                        result.ValidationErrors ??= new();
+                        result.ValidationErrors.Add($"Business unit error: {buEx.Message}");
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not CustomerSyncException)
             {
                 _logger.LogError(
                     ex,
-                    "Unexpected error during customer sync : {CustomerCode}",
+                    "Unexpected error during customer processing for {CustomerCode}",
                     customerCode
                 );
                 result.FailedRecords += sapCustomers.Count;
-
-                throw new CustomerSyncException(
-                    $"Unexpected error during customer sync : {customerCode}",
-                    customerCode,
-                    ex
-                );
+                result.Message =
+                    $"Unexpected error processing customer {customerCode}"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
+                throw new CustomerSyncException(result.Message, customerCode, ex);
             }
         }
     }
 
     private string BuildSuccessMessage(CustomerSyncResultDto result)
     {
-        var message = $"Customer sync completed. ";
+        var message = $"Customer sync completed successfully. ";
 
         if (result.NewCustomers > 0)
             message += $"New: {result.NewCustomers}. ";

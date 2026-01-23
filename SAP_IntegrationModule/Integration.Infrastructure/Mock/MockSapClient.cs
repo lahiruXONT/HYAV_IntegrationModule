@@ -196,4 +196,17 @@ public sealed class MockSapClient : ISapClient
             }
         );
     }
+
+    public Task<SapInvoiceResponseDto> GetInvoiceDataAsync(SAPInvoiceSyncRequestDto request)
+    {
+        return Task.FromResult(
+            new SapInvoiceResponseDto
+            {
+                TotalInvoiceValue = 1500.00m,
+                InvoiceDate = DateTime.UtcNow.ToString("yyyyMMdd"),
+                InvoiceStatus = "P",
+                OrderNumber = request.OrderNumber,
+            }
+        );
+    }
 }

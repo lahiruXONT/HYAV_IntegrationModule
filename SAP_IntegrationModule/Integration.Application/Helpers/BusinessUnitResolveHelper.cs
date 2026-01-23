@@ -62,7 +62,13 @@ public sealed class BusinessUnitResolveHelper
                 division
             );
             throw new BusinessUnitResolveException(
-                $"Error resolving business unit for SalesOrg: {salesOrg}, Division: {division}",
+                $"Error resolving business unit for SalesOrg: {salesOrg}, Division: {division}"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    ),
                 ex
             );
         }

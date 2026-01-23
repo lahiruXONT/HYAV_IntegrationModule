@@ -46,7 +46,7 @@ public class ReceiptMappingHelper
             {
                 CUSTOMER = xontReceipt?.CurrencyCode?.Trim() ?? string.Empty,
                 GL_ACCOUNT = xontReceipt?.BankAccountNumber?.Trim() ?? string.Empty,
-                PROFIT_CTR = businessUnit?.ProfitCenter?.Trim() ?? string.Empty,
+                PROFIT_CTR = string.Empty, //businessUnit?.ProfitCenter?.Trim() ?? string.Empty,
                 AMOUNT = xontReceipt?.Amount ?? 0m,
             };
             var receiptObj = new ReceiptRequestDto

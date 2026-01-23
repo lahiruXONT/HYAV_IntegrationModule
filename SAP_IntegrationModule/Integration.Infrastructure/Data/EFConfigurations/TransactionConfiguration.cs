@@ -20,8 +20,11 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         entity
             .HasIndex(e => new { e.BusinessUnit, e.DocumentNumberSystem })
             .IsUnique()
-            .HasDatabaseName($"IX_Transactions_BusinessUnit_DocumentNumberSystem");
+            .HasDatabaseName($"UK_Transactions");
 
         entity.Property(e => e.RecID).ValueGeneratedOnAdd();
+
+        entity.Property(e => e.BusinessUnit).HasMaxLength(4).IsRequired();
+        entity.Property(e => e.Amount).HasPrecision(15, 2);
     }
 }
