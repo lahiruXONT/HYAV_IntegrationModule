@@ -78,7 +78,10 @@ public class InvoiceSyncService : IInvoiceSyncService
                         await ProcessInvoiceAsync(order, result);
                     }
 
-                    result.Success = true;
+                    if (result.FailedRecords > 0)
+                        result.Success = false;
+                    else
+                        result.Success = true;
                     result.Message = BuildSuccessMessage(result);
 
                     _logger.LogInformation(

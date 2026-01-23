@@ -84,7 +84,6 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 );
 
                 var materialGroups = sapMaterials.GroupBy(m => m.Material).ToList();
-                var processedGroups = 0;
 
                 try
                 {
@@ -95,10 +94,11 @@ public sealed class MaterialSyncService : IMaterialSyncService
                             group.ToList(),
                             result
                         );
-                        processedGroups++;
                     }
-
-                    result.Success = true;
+                    if (result.FailedRecords > 0)
+                        result.Success = false;
+                    else
+                        result.Success = true;
                     result.Message = BuildSuccessMessage(result);
                     result.ValidationErrors = new List<string>();
 

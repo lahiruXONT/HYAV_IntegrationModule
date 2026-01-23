@@ -84,7 +84,6 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 );
 
                 var customerGroups = sapCustomers.GroupBy(c => c.Customer).ToList();
-                var processedGroups = 0;
 
                 try
                 {
@@ -95,11 +94,14 @@ public sealed class CustomerSyncService : ICustomerSyncService
                             group.ToList(),
                             result
                         );
-                        processedGroups++;
                     }
 
                     await _customerRepository.ClearGeoCacheAsync();
-                    result.Success = true;
+
+                    if (result.FailedRecords > 0)
+                        result.Success = false;
+                    else
+                        result.Success = true;
                     result.Message = BuildSuccessMessage(result);
 
                     _logger.LogInformation(
