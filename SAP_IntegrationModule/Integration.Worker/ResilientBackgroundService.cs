@@ -170,15 +170,12 @@ public abstract class ResilientBackgroundService : BackgroundService
         using (LogContext.PushProperty("FailureCount", _consecutiveFailures))
         {
             _logger.LogError(
-                ex,
                 "{ServiceName} failed ({Failures}/{MaxFailures}) after {Duration}",
                 _serviceName,
                 _consecutiveFailures,
                 options.MaxConsecutiveFailures,
                 DateTime.Now - cycleStartTime
             );
-
-            LogDetailedError(ex);
 
             if (_consecutiveFailures >= options.MaxConsecutiveFailures)
             {
@@ -238,23 +235,6 @@ public abstract class ResilientBackgroundService : BackgroundService
         var baseMinutes = Math.Pow(2, Math.Min(failures - 1, 6));
         var jitter = Random.Shared.NextDouble() * 0.3 + 0.85;
         return TimeSpan.FromMinutes(baseMinutes * jitter);
-    }
-
-    private void LogDetailedError(Exception ex)
-    {
-        var errorDetails = new
-        {
-            Service = _serviceName,
-            State = _state.ToString(),
-            Failures = _consecutiveFailures,
-            LastSuccess = _lastSuccessfulRun,
-            ErrorType = ex.GetType().Name,
-            ErrorMessage = ex.Message,
-            StackTrace = ex.StackTrace?.Substring(0, Math.Min(500, ex.StackTrace.Length)),
-            InnerException = ex.InnerException?.Message,
-        };
-
-        _logger.LogError("{ServiceName} error details {@ErrorDetails}", _serviceName, errorDetails);
     }
 
     private void OnConfigurationChanged(BackgroundServiceOptions options, string name)

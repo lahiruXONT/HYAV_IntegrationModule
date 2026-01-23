@@ -22,28 +22,38 @@ public class MaterialSyncBackgroundService : ResilientBackgroundService
     {
         await using var scope = _serviceProvider.CreateAsyncScope();
         var syncService = scope.ServiceProvider.GetRequiredService<IMaterialSyncService>();
-
-        var request = new XontMaterialSyncRequestDto
+        try
         {
-            Date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd"),
-        };
-
-        var result = await syncService.SyncMaterialsFromSapAsync(request);
-
-        if (result.Success)
-        {
-            _logger.LogInformation("Material sync completed {@Result}", result);
-        }
-        else
-        {
-            _logger.LogWarning("Material sync completed with issues {@Result}", result);
-
-            if (result.TotalRecords > 0 && result.NewMaterials + result.UpdatedMaterials == 0)
+            var request = new XontMaterialSyncRequestDto
             {
-                throw new InvalidOperationException(
-                    $"Material sync processed zero records. {result.Message}"
-                );
+                Date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd"),
+            };
+
+            var result = await syncService.SyncMaterialsFromSapAsync(request);
+
+            if (result.Success)
+            {
+                _logger.LogInformation("Material sync completed {@Result}", result);
             }
+            else
+            {
+                _logger.LogWarning("Material sync completed with issues {@Result}", result);
+            }
+        }
+        catch (SapApiExceptionDto ex)
+        {
+            _logger.LogError("Material sync failed with SAP Issue");
+            throw;
+        }
+        catch (MaterialSyncException ex)
+        {
+            _logger.LogError("Material sync failed with Issues");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Material sync failed with issues");
+            throw;
         }
     }
 }

@@ -24,27 +24,39 @@ public class CustomerSyncBackgroundService : ResilientBackgroundService
 
         var syncService = scope.ServiceProvider.GetRequiredService<ICustomerSyncService>();
 
-        var request = new XontCustomerSyncRequestDto
+        try
         {
-            Date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd"),
-        };
-
-        var result = await syncService.SyncCustomersFromSapAsync(request);
-
-        if (result.Success)
-        {
-            _logger.LogInformation("Customer sync completed {@Result}", result);
-        }
-        else
-        {
-            _logger.LogWarning("Customer sync completed with issues {@Result}", result);
-
-            if (result.TotalRecords > 0 && result.NewCustomers + result.UpdatedCustomers == 0)
+            var request = new XontCustomerSyncRequestDto
             {
-                throw new InvalidOperationException(
-                    $"Customer sync processed zero records. {result.Message}"
-                );
+                Date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd"),
+            };
+
+            var result = await syncService.SyncCustomersFromSapAsync(request);
+
+            if (result.Success)
+            {
+                _logger.LogInformation("Customer sync completed {@Result}", result);
             }
+            else
+            {
+                _logger.LogWarning("Customer sync completed with issues {@Result}", result);
+            }
+        }
+        catch (SapApiExceptionDto ex)
+        {
+            _logger.LogError("Customer sync failed with SAP Issue");
+            throw;
+        }
+        catch (CustomerSyncException ex)
+        {
+            _logger.LogError("Customer sync failed with Issues");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Customer sync failed with issues");
+
+            throw;
         }
     }
 }

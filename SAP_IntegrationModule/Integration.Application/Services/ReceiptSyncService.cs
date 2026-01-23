@@ -76,7 +76,10 @@ public class ReceiptSyncService : IReceiptSyncService
                         await ProcessReceiptAsync(receipt, result);
                     }
 
-                    result.Success = true;
+                    if (result.FailedRecords > 0)
+                        result.Success = false;
+                    else
+                        result.Success = true;
                     result.Message = BuildSuccessMessage(result);
 
                     _logger.LogInformation(
