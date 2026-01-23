@@ -28,7 +28,7 @@ public class MaterialStockSyncService : IMaterialStockSyncService
     {
         var stopwatch = Stopwatch.StartNew();
         var correlationId = CorrelationContext.CorrelationId;
-        var result = new MaterialStockSyncResultDto { SyncDate = DateTime.UtcNow };
+        var result = new MaterialStockSyncResultDto { SyncDate = DateTime.Now };
 
         using (
             _logger.BeginScope(
@@ -91,7 +91,14 @@ public class MaterialStockSyncService : IMaterialStockSyncService
             catch (Exception ex)
             {
                 result.Success = false;
-                result.Message = "Unexpected error during material stock sync";
+                result.Message =
+                    "Unexpected error during material stock sync"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
                 _logger.LogError(ex, result.Message);
                 throw new MaterialStockSyncException(result.Message, ex);
             }

@@ -83,7 +83,16 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            throw new SapApiExceptionDto($"SAP Customer API call failed", ex);
+            throw new SapApiExceptionDto(
+                $"SAP Customer API call failed"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    ),
+                ex
+            );
         }
     }
 
@@ -128,7 +137,16 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            throw new SapApiExceptionDto($"SAP Material API call failed", ex);
+            throw new SapApiExceptionDto(
+                $"SAP Material API call failed"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    ),
+                ex
+            );
         }
     }
 
@@ -220,7 +238,16 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            throw new SapApiExceptionDto($"SAP receipt API call failed", ex);
+            throw new SapApiExceptionDto(
+                $"SAP receipt API call failed"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    ),
+                ex
+            );
         }
     }
 
@@ -253,7 +280,53 @@ public class SapApiClient : ISapClient
         }
         catch (Exception ex)
         {
-            throw new SapApiExceptionDto($"SAP Material stock API call failed", ex);
+            throw new SapApiExceptionDto(
+                $"SAP Material stock API call failed"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    ),
+                ex
+            );
+        }
+    }
+
+    public async Task<SapInvoiceResponseDto> GetInvoiceDataAsync(SAPInvoiceSyncRequestDto request)
+    {
+        try
+        {
+            var content = new StringContent(
+                JsonSerializer.Serialize(request, _jsonOptions),
+                Encoding.UTF8,
+                "application/json"
+            );
+            var endpoint = $"/sap/opu/odata/sap/ZMATERIAL_STOCK/InvoiceSet";
+
+            var response = await _retryPolicy.ExecuteAsync(() =>
+                _httpClient.PostAsync(endpoint, content)
+            );
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var sapResponse = JsonSerializer.Deserialize<SapInvoiceResponseDto>(json, _jsonOptions);
+
+            return sapResponse;
+        }
+        catch (Exception ex)
+        {
+            throw new SapApiExceptionDto(
+                $"SAP Invoice API call failed"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    ),
+                ex
+            );
         }
     }
 }

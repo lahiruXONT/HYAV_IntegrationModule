@@ -25,7 +25,7 @@ public class MaterialSyncBackgroundService : ResilientBackgroundService
 
         var request = new XontMaterialSyncRequestDto
         {
-            Date = DateTime.UtcNow.AddDays(-1).ToString("yyyyMMdd"),
+            Date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd"),
         };
 
         var result = await syncService.SyncMaterialsFromSapAsync(request);

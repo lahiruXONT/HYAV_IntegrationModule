@@ -26,7 +26,7 @@ public class CustomerSyncBackgroundService : ResilientBackgroundService
 
         var request = new XontCustomerSyncRequestDto
         {
-            Date = DateTime.UtcNow.AddDays(-1).ToString("yyyyMMdd"),
+            Date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd"),
         };
 
         var result = await syncService.SyncCustomersFromSapAsync(request);

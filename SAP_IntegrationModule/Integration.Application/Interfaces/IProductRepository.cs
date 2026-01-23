@@ -4,11 +4,12 @@ namespace Integration.Application.Interfaces;
 
 public interface IProductRepository
 {
-    //Task BeginTransactionAsync();
-    //Task CommitTransactionAsync();
-    //Task RollbackTransactionAsync();
     Task<Product?> GetByProductCodeAsync(string productCode, string businessUnit);
-    Task<GlobalProduct?> GetGlobalProductAsync(string productCode);
     Task CreateProductAsync(Product product);
-    Task CreateGlobalProductAsync(GlobalProduct product);
+    Task UpdateProductAsync(Product product);
+    #region Global Product Methods (commented out for now)
+    //Task<GlobalProduct?> GetGlobalProductAsync(string productCode);
+    //Task CreateGlobalProductAsync(GlobalProduct product);
+    //Task UpdateGlobalProductAsync(GlobalProduct product);
+    #endregion
 }

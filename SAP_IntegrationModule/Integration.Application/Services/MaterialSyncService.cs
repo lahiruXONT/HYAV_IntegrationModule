@@ -53,10 +53,15 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 {
                     result.Success = false;
                     result.Message =
-                        $"Material sync request Validation failed: {string.Join("; ", validationErrors)}";
-                    _logger.LogWarning(result.Message);
+                        $"Material sync request validation failed: {string.Join("; ", validationErrors)}";
+                    _logger.LogWarning(
+                        "Material sync validation failed: {ValidationErrors}",
+                        string.Join("; ", validationErrors)
+                    );
                     return result;
                 }
+
+                _logger.LogInformation("Starting material sync for date: {Date}", request.Date);
 
                 var sapMaterials = await _sapClient.GetMaterialChangesAsync(request);
 
@@ -65,8 +70,11 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 if (sapMaterials == null || !sapMaterials.Any())
                 {
                     result.Success = true;
-                    result.Message = "No material changes found for  date: {request.Date}";
-                    _logger.LogInformation(result.Message);
+                    result.Message = $"No material changes found for date: {request.Date}";
+                    _logger.LogInformation(
+                        "No material changes found for date: {Date}",
+                        request.Date
+                    );
                     return result;
                 }
 
@@ -75,47 +83,70 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     result.TotalRecords
                 );
 
-                var materialGroups = sapMaterials.GroupBy(m => new { m.Material }).ToList();
+                var materialGroups = sapMaterials.GroupBy(m => m.Material).ToList();
                 var processedGroups = 0;
-                //await _productRepository.BeginTransactionAsync();
 
                 try
                 {
                     foreach (var group in materialGroups)
                     {
-                        await ProcessMaterialGroupAsync(group.Key.Material, group.ToList(), result);
+                        await ProcessMaterialGroupAsync(
+                            group.First().Material,
+                            group.ToList(),
+                            result
+                        );
                         processedGroups++;
                     }
 
-                    //await _productRepository.CommitTransactionAsync();
-
                     result.Success = true;
                     result.Message = BuildSuccessMessage(result);
+                    result.ValidationErrors = new List<string>();
 
-                    _logger.LogInformation(result.Message);
+                    _logger.LogInformation(
+                        "Material sync completed successfully: {@Result}",
+                        result
+                    );
                 }
                 catch (Exception ex)
+                    when (ex is not MaterialSyncException && ex is not SapApiExceptionDto)
                 {
-                    _logger.LogError(ex, "Unexpected error during material sync");
-                    //await _productRepository.RollbackTransactionAsync();
+                    _logger.LogError(ex, "Unexpected error during material sync processing");
                     result.Success = false;
-                    result.Message = $"Unexpected error during material sync";
-                    throw new MaterialSyncException($"Unexpected error during material sync", ex);
+                    result.Message =
+                        $"Unexpected error during material sync"
+                        + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                        + (
+                            !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                                ? $"; {ex.InnerException.Message}"
+                                : ""
+                        );
+                    throw new MaterialSyncException(result.Message, ex);
                 }
             }
             catch (SapApiExceptionDto sapEx)
             {
                 result.Success = false;
                 result.Message = sapEx.Message;
-                _logger.LogError(sapEx.InnerException, result.Message);
+                _logger.LogError(
+                    sapEx.InnerException,
+                    "SAP API error during material sync: {Message}",
+                    sapEx.Message
+                );
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not MaterialSyncException)
             {
                 result.Success = false;
-                result.Message = $"Unexpected error during material sync";
+                result.Message =
+                    $"Unexpected error during material sync"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
                 _logger.LogError(ex, "Unexpected error during material sync");
-                throw new MaterialSyncException($"Unexpected error during material sync", ex);
+                throw new MaterialSyncException(result.Message, ex);
             }
             finally
             {
@@ -201,9 +232,9 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 //)
                 //{
                 //    _mappingHelper.UpdateGlobalMaterial(globalMaterialExisting, globalMaterialObj);
+                //    await _productRepository.UpdateGlobalProductAsync(globalMaterialExisting);
                 //}
                 #endregion
-
                 foreach (var sapMaterial in sapMaterials)
                 {
                     try
@@ -227,12 +258,11 @@ public sealed class MaterialSyncService : IMaterialSyncService
                             if (_mappingHelper.HasMaterialChanges(existing, xontProduct))
                             {
                                 _mappingHelper.UpdateMaterial(existing, xontProduct);
+                                await _productRepository.UpdateProductAsync(existing);
                                 result.UpdatedMaterials++;
                             }
                             else
-                            {
                                 result.SkippedMaterials++;
-                            }
                         }
                     }
                     catch (ValidationExceptionDto valEx)
@@ -248,44 +278,42 @@ public sealed class MaterialSyncService : IMaterialSyncService
                             $"Material {sapMaterial.Material}: {valEx.Message}"
                         );
                     }
-                    catch (Exception ex)
+                    catch (BusinessUnitResolveException buEx)
                     {
-                        _logger.LogError(
-                            ex,
-                            "Unexpected error during material sync : {CustomerCode} ",
-                            sapMaterial.Material
+                        _logger.LogWarning(
+                            "Business unit resolution failed: {Message}",
+                            buEx.Message
                         );
                         result.FailedRecords++;
-
-                        throw new MaterialSyncException(
-                            $"Unexpected error during material sync : {sapMaterial.Material}",
-                            sapMaterial.Material,
-                            ex
-                        );
+                        result.ValidationErrors ??= new List<string>();
+                        result.ValidationErrors.Add($"Business unit error: {buEx.Message}");
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not MaterialSyncException)
             {
                 _logger.LogError(
                     ex,
-                    "Unexpected error during customer sync : {CustomerCode}",
+                    "Unexpected error during material processing for {MaterialCode}",
                     materialCode
                 );
                 result.FailedRecords += sapMaterials.Count;
-
-                throw new CustomerSyncException(
-                    $"Unexpected error during customer sync : {materialCode}",
-                    materialCode,
-                    ex
-                );
+                result.Message =
+                    $"Unexpected error processing material {materialCode}"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
+                throw new MaterialSyncException(result.Message, materialCode, ex);
             }
         }
     }
 
     private string BuildSuccessMessage(MaterialSyncResultDto result)
     {
-        var message = $"Material sync completed. ";
+        var message = $"Material sync completed successfully. ";
 
         if (result.NewMaterials > 0)
             message += $"New: {result.NewMaterials}. ";
