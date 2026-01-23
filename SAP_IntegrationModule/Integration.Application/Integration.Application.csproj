@@ -20,4 +20,19 @@
   <ItemGroup>
     <ProjectReference Include="..\Integration.Domain\Integration.Domain.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="XONT.Common.Message.MessageCreate">
+      <HintPath>..\..\..\dlls\XONT.Common.Message.MessageCreate.dll</HintPath>
+    </Reference>
+    <Reference Include="XONT.VENTURA.STTRN01_V5.Application">
+      <HintPath>..\..\..\dlls\XONT.VENTURA.STTRN01_V5.Application.dll</HintPath>
+    </Reference>
+    <Reference Include="XONT.VENTURA.STTRN01_V5.Domain">
+      <HintPath>..\..\..\dlls\XONT.VENTURA.STTRN01_V5.Domain.dll</HintPath>
+    </Reference>
+    <Reference Include="XONT.VENTURA.STTRN01_V5.Infrastructure">
+      <HintPath>..\..\..\dlls\XONT.VENTURA.STTRN01_V5.Infrastructure.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 </Project>

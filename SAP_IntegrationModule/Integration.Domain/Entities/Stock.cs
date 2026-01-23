@@ -1,6 +1,6 @@
 ﻿namespace Integration.Domain.Entities;
 
-public sealed class StockTransaction : BaseAuditableEntity
+public sealed class StockTransaction
 {
     public long RecId { get; set; }
     public string BusinessUnit { get; set; } = string.Empty;
@@ -38,6 +38,47 @@ public sealed class StockTransaction : BaseAuditableEntity
 
     public string Status { get; set; } = "1";
     public string PdaTransaction { get; set; } = "0";
+    public DateTime CreatedOn { get; set; } = DateTime.Now;
+    public string CreatedBy { get; set; } = string.Empty;
+
+    ////////////////////////////////////////////
+    //Not needed fields but need to set Defaults for EF:
+    ////////////////////////////////////////////
+    // Transaction details
+    public decimal TransactionQuantity { get; set; }
+    public string TransactionUom { get; set; } = string.Empty;
+    public string TransactionUomType { get; set; } = string.Empty;
+
+    // Batch / Movement
+    public string BatchSerialControlItem { get; set; } = string.Empty;
+    public string MovementType { get; set; } = string.Empty;
+
+    // Executive / User
+    public string ExecutiveCode { get; set; } = string.Empty;
+    public string UserProfile { get; set; } = string.Empty;
+
+    // TRN references
+    public string TrnTypeRef { get; set; } = string.Empty;
+    public int TrnTypeHeaderNumber { get; set; }
+    public int TrnTypeDetailNumber { get; set; }
+
+    // User-defined references
+    public string UserRef1 { get; set; } = string.Empty;
+    public string UserRef2 { get; set; } = string.Empty;
+    public string UserRef3 { get; set; } = string.Empty;
+    public decimal UserRef4 { get; set; }
+    public decimal UserRef5 { get; set; }
+
+    // Allocations
+    public decimal PostTransactionAllocatedU1 { get; set; }
+    public decimal PostTransactionAllocatedU2 { get; set; }
+
+    // Flags
+    public int FreeIssue { get; set; }
+    public string CostTransferFlag { get; set; } = string.Empty;
+    public int CostTransferNo { get; set; }
+    ////////////////////////////////////////////
+    ////////////////////////////////////////////
 }
 
 public sealed class StockRecord : BaseAuditableEntity

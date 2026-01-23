@@ -1,6 +1,4 @@
-﻿using System.Text;
-using System.Text.Json;
-using Integration.Application.DTOs;
+﻿using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
 
 namespace Integration.Infrastructure.Mock;
@@ -195,6 +193,29 @@ public sealed class MockSapClient : ISapClient
                 },
             }
         );
+    }
+
+    public async Task<List<GetMaterialStockFromSapResponseDto>> GetLocationStockDetails(
+        GetMaterialStockFromSapRequestDto dto
+    )
+    {
+        // Simulate async delay to mimic real API call
+        await Task.Delay(100);
+
+        var results = new List<GetMaterialStockFromSapResponseDto>();
+        for (int i = 0; i < 5; i++)
+        {
+            var testData = new GetMaterialStockFromSapResponseDto
+            {
+                Plant = "PL0" + (i).ToString(),
+                StorageLocation = "ST0" + (i).ToString(),
+                Material = "MAT-12345678" + (i).ToString(),
+                Quantity = 150.75m + (i) * 2.44M,
+            };
+            results.Add(testData);
+        }
+
+        return results;
     }
 
     public Task<SapInvoiceResponseDto> GetInvoiceDataAsync(SAPInvoiceSyncRequestDto request)

@@ -1,4 +1,6 @@
-﻿namespace Integration.Application.DTOs;
+﻿using Integration.Domain.Entities;
+
+namespace Integration.Application.DTOs;
 
 //public sealed class StockPostingRequestDto
 //{
@@ -58,4 +60,67 @@ public sealed class StockOutXontResponseDto
     public DateTime SyncDate { get; set; }
     public long ElapsedMilliseconds { get; set; }
     public string? MaterialDocumentNumber { get; set; }
+}
+
+public sealed class StockInXontRequestDto
+{
+    public string BusinessUnit { get; set; } = string.Empty;
+    public string? MaterialDocumentNumber { get; set; } // MAT_DOC_NUM
+    public DateTime SyncDate { get; set; }
+}
+
+public sealed class StockInXontResponseDto
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public DateTime SyncDate { get; set; }
+    public long ElapsedMilliseconds { get; set; }
+    public required StockTransaction StockDetails { get; set; }
+    public string? MaterialDocumentNumber { get; set; }
+}
+
+public sealed class StockInSapRequestDto
+{
+    // HEADER (1:1)
+    public DateTime PostingDate { get; set; } // POSTING_DATE (DATS)
+    public string HeaderText { get; set; } = null!; // HEADER_TXT (CHAR25)
+
+    // ITEMS (1:N)
+    public List<StockInSapItemDto> Items { get; set; } = new();
+}
+
+public sealed class StockInSapItemDto
+{
+    public string Material { get; set; } = null!; // CHAR18
+    public string ReceivingPlant { get; set; } = null!; // CHAR4
+    public string ReceivingStorageLoc { get; set; } = null!; // CHAR4
+    public string Batch { get; set; } = null!; // CHAR10
+    public string? Reference { get; set; } // CHAR50 (O)
+    public decimal Quantity { get; set; } // QUAN13,3
+}
+
+public sealed class StockInSapResponseDto
+{
+    public bool IsSuccess { get; set; } // Mapped from E_RESULT (1=Success)
+    public string? Reason { get; set; } // E_REASON
+    public string? MaterialDocumentNumber { get; set; } // MAT_DOC_NUM
+}
+
+public sealed class GetMaterialStockFromSapRequestDto
+{
+    public string Plant { get; set; } = string.Empty;
+    public string StorageLocation { get; set; } = string.Empty;
+    public DateTime SyncDate { get; set; } = DateTime.Now;
+}
+
+public sealed class GetMaterialStockFromSapResponseDto
+{
+    public string Material { get; set; } = string.Empty;
+    public decimal Quantity { get; set; }
+    public string Plant { get; set; } = string.Empty;
+    public string StorageLocation { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public DateTime SyncDate { get; set; }
+    public long ElapsedMilliseconds { get; set; }
 }
