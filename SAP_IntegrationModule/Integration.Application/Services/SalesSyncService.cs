@@ -142,7 +142,11 @@ public sealed class SalesSyncService : ISalesSyncService
                 result.Success = false;
                 result.Message = $"Unexpected error: {ex.Message}";
                 _logger.LogError(ex, "Unexpected error during sales order sync");
-                throw new SalesSyncException($"Sales order sync failed: {ex.Message}", ex);
+                throw new IntegrationException(
+                    $"Sales order sync failed: {ex.Message}",
+                    ex,
+                    ErrorCodes.SalesSync
+                );
             }
             finally
             {

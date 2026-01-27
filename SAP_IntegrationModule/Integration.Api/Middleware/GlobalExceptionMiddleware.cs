@@ -42,15 +42,10 @@ public sealed class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        var errorResponse = new ErrorResponse
-        {
-            Success = false,
-            Timestamp = DateTime.Now,
-            Path = context.Request.Path,
-            Method = context.Request.Method,
-        };
-
         HttpStatusCode statusCode;
+        string message;
+        string errorCode = ErrorCodes.Unexpected;
+        List<string>? details = null;
 
         var correlationId = CorrelationContext.CorrelationId;
 
@@ -58,13 +53,13 @@ public sealed class GlobalExceptionMiddleware
         {
             case SapApiExceptionDto sapEx:
                 statusCode = HttpStatusCode.BadGateway;
-                errorResponse.Message = sapEx.Message;
-                errorResponse.ErrorCode = ErrorCodes.SapError;
+                message = sapEx.Message;
+                errorCode = ErrorCodes.SapError;
                 break;
 
             case DbUpdateException dbEx:
                 statusCode = HttpStatusCode.Conflict;
-                errorResponse.Message =
+                message =
                     "Database update failed"
                     + (string.IsNullOrWhiteSpace(dbEx.Message) ? "" : $": {dbEx.Message}")
                     + (
@@ -73,17 +68,17 @@ public sealed class GlobalExceptionMiddleware
                             : ""
                     );
 
-                errorResponse.ErrorCode = ErrorCodes.DatabaseUpdate;
+                errorCode = ErrorCodes.DatabaseUpdate;
 
                 if (dbEx.InnerException is SqlException sqlEx)
                 {
-                    errorResponse.Details = HandleSqlException(sqlEx);
+                    details = HandleSqlException(sqlEx);
                 }
                 break;
 
             case SqlException sqEx:
                 statusCode = HttpStatusCode.Conflict;
-                errorResponse.Message =
+                message =
                     "Database error occurred"
                     + (string.IsNullOrWhiteSpace(sqEx.Message) ? "" : $": {sqEx.Message}")
                     + (
@@ -92,57 +87,37 @@ public sealed class GlobalExceptionMiddleware
                             : ""
                     );
 
-                errorResponse.ErrorCode = ErrorCodes.Database;
-                errorResponse.Details = HandleSqlException(sqEx);
+                errorCode = ErrorCodes.Database;
+                details = HandleSqlException(sqEx);
                 break;
 
             case UnauthorizedAccessException:
                 statusCode = HttpStatusCode.Unauthorized;
-                errorResponse.Message = "Not authorized";
-                errorResponse.ErrorCode = ErrorCodes.UnAuthorize;
+                message = "Not authorized";
+                errorCode = ErrorCodes.UnAuthorize;
                 break;
 
             case ValidationExceptionDto validationEx:
                 statusCode = HttpStatusCode.BadRequest;
-                errorResponse.Message = validationEx.Message;
-                errorResponse.ErrorCode = ErrorCodes.Validation;
+                message = validationEx.Message;
+                errorCode = ErrorCodes.Validation;
                 break;
 
-            case CustomerSyncException custEx:
-                statusCode = HttpStatusCode.BadRequest;
-                errorResponse.Message = custEx.Message;
-                errorResponse.ErrorCode = ErrorCodes.CustomerSync;
-                break;
-
-            case MaterialSyncException matEx:
-                statusCode = HttpStatusCode.BadRequest;
-                errorResponse.Message = matEx.Message;
-                errorResponse.ErrorCode = ErrorCodes.MaterialSync;
-                break;
-
-            case ReceiptSyncException receiptEx:
-                statusCode = HttpStatusCode.BadRequest;
-                errorResponse.Message = receiptEx.Message;
-                errorResponse.ErrorCode = ErrorCodes.Unexpected;
-
-                break;
-
-            case MaterialStockSyncException stockEx:
-                statusCode = HttpStatusCode.BadRequest;
-                errorResponse.Message = stockEx.Message;
-                errorResponse.ErrorCode = ErrorCodes.Unexpected;
-
+            case IntegrationException intEx:
+                statusCode = HttpStatusCode.InternalServerError;
+                message = intEx.Message;
+                errorCode = intEx.ErrorCode;
                 break;
 
             case BusinessUnitResolveException buEx:
-                statusCode = HttpStatusCode.BadRequest;
-                errorResponse.Message = buEx.Message;
-                errorResponse.ErrorCode = ErrorCodes.Validation;
+                statusCode = HttpStatusCode.InternalServerError;
+                message = buEx.Message;
+                errorCode = ErrorCodes.BusinessUnitResolve;
                 break;
 
             default:
                 statusCode = HttpStatusCode.InternalServerError;
-                errorResponse.Message =
+                message =
                     "An unexpected error occurred"
                     + (string.IsNullOrWhiteSpace(exception.Message) ? "" : $": {exception.Message}")
                     + (
@@ -150,22 +125,36 @@ public sealed class GlobalExceptionMiddleware
                             ? $"; {exception.InnerException.Message}"
                             : ""
                     );
-                errorResponse.ErrorCode = ErrorCodes.Unexpected;
+                errorCode = ErrorCodes.Unexpected;
                 _logger.LogError(
                     exception,
                     "Unhandled exception | CorrelationId: {CorrelationId} | Path: {Path} | ErrorCode: {ErrorCode}",
                     correlationId,
                     context.Request.Path,
-                    errorResponse.ErrorCode
+                    errorCode
                 );
                 break;
         }
 
         context.Response.StatusCode = (int)statusCode;
-        errorResponse.CorrelationId = correlationId;
+
+        var response = new ApiResponse<ErrorResponseData>
+        {
+            Success = false,
+            Message = message,
+            ErrorCode = errorCode,
+            Data = new ErrorResponseData
+            {
+                Timestamp = DateTime.Now,
+                Path = context.Request.Path,
+                Method = context.Request.Method,
+                CorrelationId = CorrelationContext.CorrelationId,
+                Details = details,
+            },
+        };
 
         var result = JsonSerializer.Serialize(
-            errorResponse,
+            response,
             new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

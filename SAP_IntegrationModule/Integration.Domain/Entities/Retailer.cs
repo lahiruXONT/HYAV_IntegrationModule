@@ -45,4 +45,6 @@ public sealed class Retailer : BaseAuditableEntity
     public string RetailerTypeCode { get; set; } = string.Empty;
     public string RetailerClassCode { get; set; } = string.Empty;
     public string RetailerCategoryCode { get; set; } = string.Empty;
+    public IReadOnlyCollection<RetailerClassification> RetailerClassifications { get; set; } =
+        new List<RetailerClassification>();
 }

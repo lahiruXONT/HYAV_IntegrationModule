@@ -77,8 +77,12 @@ public sealed class StockTransaction
     public int FreeIssue { get; set; }
     public string CostTransferFlag { get; set; } = string.Empty;
     public int CostTransferNo { get; set; }
+
     ////////////////////////////////////////////
     ////////////////////////////////////////////
+    ///
+    public IReadOnlyCollection<ReceivedSerialBatch> ReceivedSerialBatches { get; set; } =
+        new List<ReceivedSerialBatch>();
 }
 
 public sealed class StockRecord : BaseAuditableEntity

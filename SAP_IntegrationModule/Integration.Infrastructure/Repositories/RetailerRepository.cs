@@ -33,7 +33,13 @@ public sealed class RetailerRepository : IRetailerRepository
     }
 
     public Task<Retailer?> GetByRetailerCodeAsync(string code, string bu) =>
-        _context.Retailers.FirstOrDefaultAsync(r => r.RetailerCode == code && r.BusinessUnit == bu);
+        _context
+            .Retailers.Include(r =>
+                r.RetailerClassifications.Where(rc =>
+                    rc.Status == "1" && new[] { "TOWN", "DISTCHNL" }.Contains(rc.MasterGroup)
+                )
+            )
+            .FirstOrDefaultAsync(r => r.RetailerCode == code && r.BusinessUnit == bu);
 
     public Task<SettlementTerm?> GetSettlementTermAsync(string BusinessUnit, string PaymentTerm) =>
         _context.SettlementTerms.FirstOrDefaultAsync(t =>
@@ -43,37 +49,18 @@ public sealed class RetailerRepository : IRetailerRepository
             && t.Status == "1"
         );
 
-    public async Task<(
-        bool hasGeoChanges,
-        bool hasDistChannelChanges
-    )> CheckClassificationChangesAsync(
-        string businessUnit,
-        string retailerCode,
-        string postalCode,
-        string distributionChannel
-    )
-    {
-        var currentClassifications = await _context
-            .RetailerClassifications.Where(rc =>
-                rc.BusinessUnit == businessUnit
-                && rc.RetailerCode == retailerCode
-                && rc.Status == "1"
-            )
-            .ToListAsync();
+    public Task<TerritoryControl?> GetTerritoryDefaultAsync(
+        string BusinessUnit,
+        string territoryCode
+    ) =>
+        _context.TerritoryControls.FirstOrDefaultAsync(t =>
+            t.BusinessUnit == BusinessUnit && t.TerritoryCode == territoryCode && t.Status == "1"
+        );
 
-        var town = currentClassifications
-            .FirstOrDefault(rc => rc.MasterGroup == "TOWN")
-            ?.MasterGroupValue;
-
-        var distChannel = currentClassifications
-            .FirstOrDefault(rc => rc.MasterGroup == "DISTCHNL")
-            ?.MasterGroupValue;
-
-        bool hasGeoChanges = town != postalCode;
-        bool hasDistChannelChanges = distChannel != distributionChannel;
-
-        return (hasGeoChanges, hasDistChannelChanges);
-    }
+    public Task<bool> TerritoryExistsAsync(string BusinessUnit, string territoryCode) =>
+        _context.TerritoryControls.AnyAsync(t =>
+            t.BusinessUnit == BusinessUnit && t.TerritoryCode == territoryCode && t.Status == "1"
+        );
 
     public Task<bool> SettlementTermExistsAsync(string BusinessUnit, string PaymentTerm) =>
         _context.SettlementTerms.AnyAsync(t =>

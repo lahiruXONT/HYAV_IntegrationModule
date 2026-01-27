@@ -65,8 +65,7 @@ public sealed class StockOutXontResponseDto
 public sealed class StockInXontRequestDto
 {
     public string BusinessUnit { get; set; } = string.Empty;
-    public string? MaterialDocumentNumber { get; set; } // MAT_DOC_NUM
-    public DateTime SyncDate { get; set; }
+    public string MaterialDocumentNumber { get; set; } = string.Empty; // MAT_DOC_NUM
 }
 
 public sealed class StockInXontResponseDto
@@ -82,11 +81,11 @@ public sealed class StockInXontResponseDto
 public sealed class StockInSapRequestDto
 {
     // HEADER (1:1)
-    public DateTime PostingDate { get; set; } // POSTING_DATE (DATS)
-    public string HeaderText { get; set; } = null!; // HEADER_TXT (CHAR25)
+    public DateTime POSTING_DATE { get; set; } // POSTING_DATE (DATS)
+    public string HEADER_TXT { get; set; } = null!; // HEADER_TXT (CHAR25)
 
     // ITEMS (1:N)
-    public List<StockInSapItemDto> Items { get; set; } = new();
+    public List<StockInSapItemDto> I_ITEM { get; set; } = new();
 }
 
 public sealed class StockInSapItemDto
@@ -101,9 +100,9 @@ public sealed class StockInSapItemDto
 
 public sealed class StockInSapResponseDto
 {
-    public bool IsSuccess { get; set; } // Mapped from E_RESULT (1=Success)
-    public string? Reason { get; set; } // E_REASON
-    public string? MaterialDocumentNumber { get; set; } // MAT_DOC_NUM
+    public string E_RESULT { get; set; } // E_RESULT (1=Success)
+    public string? E_REASON { get; set; } // E_REASON
+    public string? MAT_DOC_NUM { get; set; } // MAT_DOC_NUM
 }
 
 public sealed class GetMaterialStockFromSapRequestDto

@@ -39,12 +39,14 @@ public class AuthRepository : IAuthRepository
                 )
             );
 
-    public Task<UserSession?> GetUserSessionAsync(string refreshToken) =>
+    public Task<UserSession?> GetUserSessionAsync(string refreshToken, string userName) =>
         _context
-            .UserSessions.Include(s => s.User)
-            .FirstOrDefaultAsync(s =>
+            .UserSessions.AsNoTracking()
+            .Where(s =>
                 s.RefreshToken == refreshToken && s.Status == "1" && s.ExpiresAt > DateTime.Now
-            );
+            )
+            .Include(s => s.User)
+            .FirstOrDefaultAsync(s => s.User.UserName == userName);
 
     public Task<int> GetActiveSessionsCountAsync(long userId) =>
         _context.UserSessions.CountAsync(s =>

@@ -1,10 +1,15 @@
-﻿using Integration.Application.DTOs;
+﻿using System;
+using System.Text;
+using System.Text.Json;
+using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
 
 namespace Integration.Infrastructure.Mock;
 
 public sealed class MockSapClient : ISapClient
 {
+    private static readonly Random _random = new();
+
     public Task<List<SapCustomerResponseDto>> GetCustomerChangesAsync(
         XontCustomerSyncRequestDto request
     )
@@ -220,14 +225,45 @@ public sealed class MockSapClient : ISapClient
 
     public Task<SapInvoiceResponseDto> GetInvoiceDataAsync(SAPInvoiceSyncRequestDto request)
     {
-        return Task.FromResult(
+        var mockInvoices = new[]
+        {
             new SapInvoiceResponseDto
             {
-                TotalInvoiceValue = 1500.00m,
-                InvoiceDate = DateTime.UtcNow.ToString("yyyyMMdd"),
-                InvoiceStatus = "P",
                 OrderNumber = request.OrderNumber,
-            }
-        );
+                TotalInvoiceValue = 1500.00m,
+                InvoiceStatus = "O",
+                InvoiceDate = DateTime.Now.AddDays(-2).ToString("yyyyMMdd"),
+            },
+            new SapInvoiceResponseDto
+            {
+                OrderNumber = request.OrderNumber,
+                TotalInvoiceValue = 2500.50m,
+                InvoiceStatus = "P",
+                InvoiceDate = DateTime.Now.AddDays(-5).ToString("yyyyMMdd"),
+            },
+            new SapInvoiceResponseDto
+            {
+                OrderNumber = request.OrderNumber,
+                TotalInvoiceValue = 3200.75m,
+                InvoiceStatus = "C",
+                InvoiceDate = DateTime.Now.AddDays(-10).ToString("yyyyMMdd"),
+            },
+        };
+
+        // Pick one randomly
+        var selectedInvoice = mockInvoices[_random.Next(mockInvoices.Length)];
+
+        return Task.FromResult(selectedInvoice);
+    }
+
+    public Task<StockInSapResponseDto> SendStockInAsync(StockInSapRequestDto request)
+    {
+        var result = new StockInSapResponseDto
+        {
+            E_RESULT = "1",
+            E_REASON = "Stock-in transaction processed successfully",
+            MAT_DOC_NUM = request.HEADER_TXT,
+        };
+        return Task.FromResult(result);
     }
 }

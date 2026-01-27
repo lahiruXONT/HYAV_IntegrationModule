@@ -87,14 +87,14 @@ public sealed class MaterialSyncService : IMaterialSyncService
 
                 try
                 {
-                    foreach (var group in materialGroups)
-                    {
-                        await ProcessMaterialGroupAsync(
-                            group.First().Material,
-                            group.ToList(),
-                            result
-                        );
-                    }
+                    await Parallel.ForEachAsync(
+                        materialGroups,
+                        new ParallelOptions { MaxDegreeOfParallelism = 5 },
+                        async (group, ct) =>
+                        {
+                            await ProcessMaterialGroupAsync(group.Key, group.ToList(), result);
+                        }
+                    );
                     if (result.FailedRecords > 0)
                         result.Success = false;
                     else
@@ -108,7 +108,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     );
                 }
                 catch (Exception ex)
-                    when (ex is not MaterialSyncException && ex is not SapApiExceptionDto)
+                    when (ex is not IntegrationException && ex is not SapApiExceptionDto)
                 {
                     _logger.LogError(ex, "Unexpected error during material sync processing");
                     result.Success = false;
@@ -120,7 +120,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                                 ? $"; {ex.InnerException.Message}"
                                 : ""
                         );
-                    throw new MaterialSyncException(result.Message, ex);
+                    throw new IntegrationException(result.Message, ex, ErrorCodes.MaterialSync);
                 }
             }
             catch (SapApiExceptionDto sapEx)
@@ -134,7 +134,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                 );
                 throw;
             }
-            catch (Exception ex) when (ex is not MaterialSyncException)
+            catch (Exception ex) when (ex is not IntegrationException)
             {
                 result.Success = false;
                 result.Message =
@@ -146,7 +146,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                             : ""
                     );
                 _logger.LogError(ex, "Unexpected error during material sync");
-                throw new MaterialSyncException(result.Message, ex);
+                throw new IntegrationException(result.Message, ex, ErrorCodes.MaterialSync);
             }
             finally
             {
@@ -290,7 +290,7 @@ public sealed class MaterialSyncService : IMaterialSyncService
                     }
                 }
             }
-            catch (Exception ex) when (ex is not MaterialSyncException)
+            catch (Exception ex) when (ex is not IntegrationException)
             {
                 _logger.LogError(
                     ex,
@@ -306,7 +306,12 @@ public sealed class MaterialSyncService : IMaterialSyncService
                             ? $"; {ex.InnerException.Message}"
                             : ""
                     );
-                throw new MaterialSyncException(result.Message, materialCode, ex);
+                throw new IntegrationException(
+                    result.Message,
+                    materialCode,
+                    ex,
+                    ErrorCodes.MaterialSync
+                );
             }
         }
     }

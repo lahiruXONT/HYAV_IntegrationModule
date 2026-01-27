@@ -42,15 +42,30 @@ public class ReceiptSyncService : IReceiptSyncService
                     ["CorrelationId"] = correlationId,
                     ["SyncType"] = "Receipt",
                     ["RequestDate"] = result.SyncDate,
+                    ["BusinessUnit"] = request.BusinessUnit,
+                    ["ReciptIDs"] = string.Join(",", request.IDs),
                 }
             )
         )
         {
             try
             {
+                var validationErrors = ValidateRequest(request);
+                if (validationErrors.Any())
+                {
+                    result.Success = false;
+                    result.Message =
+                        $"Receipt sync request validation failed: {string.Join("; ", validationErrors)}";
+                    _logger.LogWarning(
+                        "Receipt sync validation failed: {ValidationErrors}",
+                        string.Join("; ", validationErrors)
+                    );
+                    return result;
+                }
                 _logger.LogInformation("Starting Receipt sync : {Date}", result.SyncDate);
 
                 var pendingReceipts = await _transactionsRepository.GetUnsyncedReceiptsAsync(
+                    request.BusinessUnit,
                     request.IDs
                 );
 
@@ -105,7 +120,7 @@ public class ReceiptSyncService : IReceiptSyncService
                                 ? $"; {ex.InnerException.Message}"
                                 : ""
                         );
-                    throw new ReceiptSyncException(result.Message, ex);
+                    throw new IntegrationException(result.Message, ex, ErrorCodes.ReceiptSync);
                 }
             }
             catch (SapApiExceptionDto sapEx)
@@ -119,7 +134,7 @@ public class ReceiptSyncService : IReceiptSyncService
                 );
                 throw;
             }
-            catch (Exception ex) when (ex is not ReceiptSyncException)
+            catch (Exception ex) when (ex is not IntegrationException)
             {
                 result.Success = false;
                 result.Message =
@@ -131,7 +146,7 @@ public class ReceiptSyncService : IReceiptSyncService
                             : ""
                     );
                 _logger.LogError(ex, "Unexpected error during receipt sync");
-                throw new ReceiptSyncException(result.Message, ex);
+                throw new IntegrationException(result.Message, ex, ErrorCodes.ReceiptSync);
             }
             finally
             {
@@ -141,6 +156,21 @@ public class ReceiptSyncService : IReceiptSyncService
         }
 
         return result;
+    }
+
+    private List<string> ValidateRequest(XontReceiptSyncRequestDto request)
+    {
+        var errors = new List<string>();
+
+        if (request == null)
+        {
+            errors.Add("Request cannot be null");
+            return errors;
+        }
+        if (string.IsNullOrWhiteSpace(request.BusinessUnit))
+            errors.Add("Business Unit is required");
+
+        return errors;
     }
 
     private async Task ProcessReceiptAsync(Transaction receipt, ReceiptSyncResultDto result)
@@ -206,7 +236,7 @@ public class ReceiptSyncService : IReceiptSyncService
                 );
                 throw;
             }
-            catch (Exception ex) when (ex is not ReceiptSyncException)
+            catch (Exception ex) when (ex is not IntegrationException)
             {
                 _logger.LogError(
                     ex,
@@ -224,10 +254,11 @@ public class ReceiptSyncService : IReceiptSyncService
                             : ""
                     );
 
-                throw new ReceiptSyncException(
+                throw new IntegrationException(
                     result.Message,
                     receipt.DocumentNumberSystem.ToString(),
-                    ex
+                    ex,
+                    ErrorCodes.ReceiptSync
                 );
             }
         }

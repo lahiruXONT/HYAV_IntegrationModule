@@ -97,13 +97,13 @@ public sealed class AuthService : IAuthService
     }
 
     public async Task<AuthResponseDto> RefreshTokenAsync(
-        string refreshToken,
+        string refreshToken, string userName,
         string? ipAddress = null
     )
     {
         try
         {
-            var session = await _authRepository.GetUserSessionAsync(refreshToken);
+            var session = await _authRepository.GetUserSessionAsync(refreshToken, userName);
 
             if (session == null || session.User == null)
             {
@@ -163,17 +163,19 @@ public sealed class AuthService : IAuthService
         }
     }
 
-    public async Task LogoutAsync(string refreshToken)
+    public async Task LogoutAsync(string refreshToken, string userName)
     {
         try
         {
-            var session = await _authRepository.GetUserSessionAsync(refreshToken);
-            if (session != null)
-            {
-                session.Status = "0";
-                session.UpdatedOn = DateTime.Now;
-                await _authRepository.UpdateUserSessionAsync(session);
-            }
+            var session = await _authRepository.GetUserSessionAsync(refreshToken, userName);
+
+            if (session == null)
+                return;
+
+            session.Status = "0";
+            session.UpdatedOn = DateTime.UtcNow;
+
+            await _authRepository.UpdateUserSessionAsync(session);
         }
         catch (Exception ex)
         {

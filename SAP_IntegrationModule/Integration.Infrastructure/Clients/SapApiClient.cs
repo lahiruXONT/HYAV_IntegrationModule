@@ -329,4 +329,44 @@ public class SapApiClient : ISapClient
             );
         }
     }
+
+    public async Task<StockInSapResponseDto> SendStockInAsync(StockInSapRequestDto request)
+    {
+        try
+        {
+            var content = new StringContent(
+                JsonSerializer.Serialize(request, _jsonOptions),
+                Encoding.UTF8,
+                "application/json"
+            );
+            var endpoint = $"/sap/opu/odata/sap/ZStockIn/StockInSet";
+
+            var response = await _retryPolicy.ExecuteAsync(() =>
+                _httpClient.PostAsync(endpoint, content)
+            );
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var sapResponse = JsonSerializer.Deserialize<SapODataResponse<StockInSapResponseDto>>(
+                json,
+                _jsonOptions
+            );
+
+            return sapResponse.D.Results.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            throw new SapApiExceptionDto(
+                $"SAP stock in API call failed"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    ),
+                ex
+            );
+        }
+    }
 }

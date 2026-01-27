@@ -100,7 +100,7 @@ public class MaterialStockSyncService : IMaterialStockSyncService
                             : ""
                     );
                 _logger.LogError(ex, result.Message);
-                throw new MaterialStockSyncException(result.Message, ex);
+                throw new IntegrationException(result.Message, ex, ErrorCodes.MaterialStockSync);
             }
             finally
             {

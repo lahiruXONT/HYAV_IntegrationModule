@@ -19,21 +19,23 @@ public sealed class InvoiceRepository : IInvoiceRepository
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public Task<List<SalesOrderHeader>> GetByOrdersByDateRangeAsync(
+    public Task<List<SalesOrderHeader>> GetOrdersByDateRangeAsync(
+        string businessunit,
         DateTime fromDate,
         DateTime toDate
     ) =>
         _context
             .SalesOrderHeaders.Where(h =>
-                h.OrderDate.Date >= fromDate.Date
+                h.BusinessUnit == businessunit
+                && h.OrderDate.Date >= fromDate.Date
                 && h.OrderDate.Date <= toDate.Date
-                && h.OrderComplete == "1"
+                && h.IntegratedStatus == "1"
             )
             .OrderBy(h => h.OrderDate)
             .ToListAsync();
 
     public Task<List<ERPInvoicedOrderDetail>> GetERPInvoiceDataByOrderAsync(
-        long orderNo,
+        string orderNo,
         string businessUnit,
         string customerCode,
         string executiveCode,

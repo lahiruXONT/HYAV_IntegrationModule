@@ -19,6 +19,7 @@ public sealed class SapInvoiceResponseDto
 
 public sealed class XontInvoiceSyncRequestDto
 {
+    public string BusinessUnit { get; set; } = string.Empty;
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
 }

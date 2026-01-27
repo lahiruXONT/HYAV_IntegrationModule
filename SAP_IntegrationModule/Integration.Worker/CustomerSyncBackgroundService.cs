@@ -47,7 +47,7 @@ public class CustomerSyncBackgroundService : ResilientBackgroundService
             _logger.LogError("Customer sync failed with SAP Issue");
             throw;
         }
-        catch (CustomerSyncException ex)
+        catch (IntegrationException ex)
         {
             _logger.LogError("Customer sync failed with Issues");
             throw;

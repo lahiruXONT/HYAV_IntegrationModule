@@ -49,9 +49,22 @@ public class InvoiceSyncService : IInvoiceSyncService
         {
             try
             {
+                var validationErrors = ValidateRequest(request);
+                if (validationErrors.Any())
+                {
+                    result.Success = false;
+                    result.Message =
+                        $"Invoice sync request validation failed: {string.Join("; ", validationErrors)}";
+                    _logger.LogWarning(
+                        "Invoice sync validation failed: {ValidationErrors}",
+                        string.Join("; ", validationErrors)
+                    );
+                    return result;
+                }
                 _logger.LogInformation("Starting Invoice sync : {Date}", result.SyncDate);
 
-                var orders = await _eRPInvoiceRepository.GetByOrdersByDateRangeAsync(
+                var orders = await _eRPInvoiceRepository.GetOrdersByDateRangeAsync(
+                    request.BusinessUnit,
                     request.FromDate,
                     request.ToDate
                 );
@@ -90,7 +103,7 @@ public class InvoiceSyncService : IInvoiceSyncService
                     );
                 }
                 catch (Exception ex)
-                    when (ex is not InvoiceSyncException && ex is not SapApiExceptionDto)
+                    when (ex is not IntegrationException && ex is not SapApiExceptionDto)
                 {
                     _logger.LogError(
                         ex,
@@ -108,11 +121,11 @@ public class InvoiceSyncService : IInvoiceSyncService
                                 ? $"; {ex.InnerException.Message}"
                                 : ""
                         );
-                    throw new InvoiceSyncException(result.Message, ex);
+                    throw new IntegrationException(result.Message, ex, ErrorCodes.InvoiceSync);
                 }
             }
             catch (Exception ex)
-                when (ex is not InvoiceSyncException && ex is not SapApiExceptionDto)
+                when (ex is not IntegrationException && ex is not SapApiExceptionDto)
             {
                 result.Success = false;
                 result.Message =
@@ -124,7 +137,7 @@ public class InvoiceSyncService : IInvoiceSyncService
                             : ""
                     );
                 _logger.LogError(ex, "Unexpected error during invoice sync");
-                throw new InvoiceSyncException(result.Message, ex);
+                throw new IntegrationException(result.Message, ex, ErrorCodes.InvoiceSync);
             }
             finally
             {
@@ -134,6 +147,28 @@ public class InvoiceSyncService : IInvoiceSyncService
         }
 
         return result;
+    }
+
+    private List<string> ValidateRequest(XontInvoiceSyncRequestDto request)
+    {
+        var errors = new List<string>();
+
+        if (request == null)
+        {
+            errors.Add("Request cannot be null");
+            return errors;
+        }
+        if (string.IsNullOrWhiteSpace(request.BusinessUnit))
+            errors.Add("Business Unit is required");
+        if (request.FromDate == null || request.FromDate == DateTime.MinValue)
+            errors.Add("From Date is required");
+        if (request.ToDate == null || request.ToDate == DateTime.MinValue)
+            errors.Add("To Date is required");
+
+        if (request.ToDate > request.FromDate)
+            errors.Add("To Date cannot be greater than From date");
+
+        return errors;
     }
 
     private async Task ProcessInvoiceAsync(SalesOrderHeader order, InvoiceSyncResultDto result)
@@ -154,7 +189,28 @@ public class InvoiceSyncService : IInvoiceSyncService
             {
                 _logger.LogDebug("Processing Order: {orderNo}", OrderNumber);
 
+                var existingERPInvoiceDetail =
+                    await _eRPInvoiceRepository.GetERPInvoiceDataByOrderAsync(
+                        OrderNumber,
+                        order.BusinessUnit,
+                        order.RetailerCode,
+                        order.ExecutiveCode,
+                        order.TerritoryCode
+                    );
+
+                if (existingERPInvoiceDetail?.Any(x => x.Status == "C") == true)
+                {
+                    _logger.LogInformation(
+                        "Invoice already completely processed for order {orderNo}. Skipping SAP call.",
+                        OrderNumber
+                    );
+
+                    result.SkippedRecords++;
+                    return;
+                }
+
                 var request = new SAPInvoiceSyncRequestDto { OrderNumber = OrderNumber };
+
                 var sapResult = await _sapClient.GetInvoiceDataAsync(request);
 
                 if (sapResult.E_RESULT == "1")
@@ -164,47 +220,66 @@ public class InvoiceSyncService : IInvoiceSyncService
                         order
                     );
 
-                    var existingERPInvoiceDetail =
-                        await _eRPInvoiceRepository.GetERPInvoiceDataByOrderAsync(
-                            order.OrderNo,
-                            order.BusinessUnit,
-                            order.RetailerCode,
-                            order.ExecutiveCode,
-                            order.TerritoryCode
-                        );
-
-                    if (existingERPInvoiceDetail != null)
+                    if (existingERPInvoiceDetail != null && existingERPInvoiceDetail.Any())
                     {
-                        var rec = existingERPInvoiceDetail.FirstOrDefault(a =>
-                            a.InvoiceDate == xontERPInvoice.InvoiceDate
-                        );
-
-                        if (rec != null)
+                        if (xontERPInvoice.Status == "O")
                         {
-                            if (
-                                rec.TotalInvoiceValue == xontERPInvoice.TotalInvoiceValue
-                                && rec.Status == xontERPInvoice.Status
-                            )
-                            {
-                                result.SkippedRecords++;
-                                _logger.LogInformation(
-                                    "No changes detected for invoice of order {orderNo}, skipping update",
-                                    OrderNumber
-                                );
-                                return;
-                            }
-
+                            _logger.LogInformation(
+                                "No changes detected for invoice of order {orderNo}, skipping update",
+                                OrderNumber
+                            );
+                            result.SkippedRecords++;
+                            return;
+                        }
+                        else if (
+                            existingERPInvoiceDetail.Count() == 1
+                            && existingERPInvoiceDetail.First().Status == "O"
+                        )
+                        {
+                            var rec = existingERPInvoiceDetail.First();
                             rec.TotalInvoiceValue = xontERPInvoice.TotalInvoiceValue;
                             rec.Status = xontERPInvoice.Status;
+                            rec.InvoiceDate = xontERPInvoice.InvoiceDate;
+                            rec.UpdatedBy = "SAPSYNC";
+                            rec.UpdatedOn = DateTime.Now;
                             await _eRPInvoiceRepository.UpdateERPInvoicedOrderDetailAsync(rec);
                             result.SyncedRecords++;
                         }
                         else
                         {
-                            await _eRPInvoiceRepository.CreateERPInvoicedOrderDetailAsync(
-                                xontERPInvoice
+                            var rec = existingERPInvoiceDetail.FirstOrDefault(a =>
+                                a.InvoiceDate == xontERPInvoice.InvoiceDate
                             );
-                            result.SyncedRecords++;
+
+                            if (rec != null)
+                            {
+                                if (
+                                    rec.TotalInvoiceValue == xontERPInvoice.TotalInvoiceValue
+                                    && rec.Status == xontERPInvoice.Status
+                                )
+                                {
+                                    result.SkippedRecords++;
+                                    _logger.LogInformation(
+                                        "No changes detected for invoice of order {orderNo}, skipping update",
+                                        OrderNumber
+                                    );
+                                    return;
+                                }
+
+                                rec.TotalInvoiceValue = xontERPInvoice.TotalInvoiceValue;
+                                rec.Status = xontERPInvoice.Status;
+                                rec.UpdatedBy = "SAPSYNC";
+                                rec.UpdatedOn = DateTime.Now;
+                                await _eRPInvoiceRepository.UpdateERPInvoicedOrderDetailAsync(rec);
+                                result.SyncedRecords++;
+                            }
+                            else
+                            {
+                                await _eRPInvoiceRepository.CreateERPInvoicedOrderDetailAsync(
+                                    xontERPInvoice
+                                );
+                                result.SyncedRecords++;
+                            }
                         }
                     }
                     else
@@ -253,7 +328,7 @@ public class InvoiceSyncService : IInvoiceSyncService
                 );
                 throw;
             }
-            catch (Exception ex) when (ex is not InvoiceSyncException)
+            catch (Exception ex) when (ex is not IntegrationException)
             {
                 _logger.LogError(ex, "Error processing invoice {orderNo}", OrderNumber);
                 result.FailedRecords += 1;
@@ -265,7 +340,12 @@ public class InvoiceSyncService : IInvoiceSyncService
                             ? $"; {ex.InnerException.Message}"
                             : ""
                     );
-                throw new InvoiceSyncException(result.Message, OrderNumber.ToString(), ex);
+                throw new IntegrationException(
+                    result.Message,
+                    OrderNumber.ToString(),
+                    ex,
+                    ErrorCodes.InvoiceSync
+                );
             }
         }
     }

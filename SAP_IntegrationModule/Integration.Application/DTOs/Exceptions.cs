@@ -1,13 +1,42 @@
 ﻿namespace Integration.Application.DTOs;
 
-public abstract class IntegrationException : Exception
+public sealed class IntegrationException : Exception
 {
+    public string RecordIdentifier { get; } = string.Empty;
     public string ErrorCode { get; }
     public List<string> Details { get; }
 
-    protected IntegrationException(string message, string errorCode, List<string>? details = null)
-        : base(message)
+    public IntegrationException(string message, Exception innerException, string errorCode)
+        : base(message, innerException)
     {
+        RecordIdentifier = string.Empty;
+        ErrorCode = errorCode;
+        Details = new();
+    }
+
+    public IntegrationException(
+        string message,
+        string recordIdentifier,
+        Exception innerException,
+        string errorCode
+    )
+        : base(message, innerException)
+    {
+        RecordIdentifier = recordIdentifier;
+        ErrorCode = errorCode;
+        Details = new();
+    }
+
+    public IntegrationException(
+        string message,
+        string recordIdentifier,
+        Exception innerException,
+        string errorCode,
+        List<string>? details = null
+    )
+        : base(message, innerException)
+    {
+        RecordIdentifier = recordIdentifier;
         ErrorCode = errorCode;
         Details = details ?? new();
     }
@@ -23,6 +52,13 @@ public static class ErrorCodes
     public const string UnAuthorize = "UNAUTHORIZED";
     public const string CustomerSync = "CUSTOMER_SYNC_ERROR";
     public const string MaterialSync = "MATERIAL_SYNC_ERROR";
+    public const string BusinessUnitResolve = "BUSINESS_UNIT_RESOLVE_ERROR";
+    public const string StockInSync = "STOCK_IN_SYNC_ERROR";
+    public const string StockOutSync = "STOCK_IOUT_SYNC_ERROR";
+    public const string MaterialStockSync = "MATERIAL_STOCK_SYNC_ERROR";
+    public const string SalesSync = "SALES_SYNC_ERROR";
+    public const string ReceiptSync = "RECEIPT_SYNC_ERROR";
+    public const string InvoiceSync = "INVOICE_SYNC_ERROR";
 }
 
 public sealed class ValidationExceptionDto : Exception
@@ -37,110 +73,8 @@ public sealed class SapApiExceptionDto : Exception
         : base(message, innerException) { }
 }
 
-public sealed class CustomerSyncException : Exception
-{
-    public string CustomerCode { get; }
-
-    public CustomerSyncException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-        CustomerCode = string.Empty;
-    }
-
-    public CustomerSyncException(string message, string customerCode, Exception innerException)
-        : base(message, innerException)
-    {
-        CustomerCode = customerCode;
-    }
-}
-
-public sealed class MaterialSyncException : Exception
-{
-    public string MaterialCode { get; }
-
-    public MaterialSyncException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-        MaterialCode = string.Empty;
-    }
-
-    public MaterialSyncException(string message, string materialCode, Exception innerException)
-        : base(message, innerException)
-    {
-        MaterialCode = materialCode;
-    }
-}
-
-public sealed class SalesSyncException : Exception
-{
-    public string OrderNo { get; }
-
-    public SalesSyncException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-        OrderNo = string.Empty;
-    }
-
-    public SalesSyncException(string message, string orderNo, Exception innerException)
-        : base(message, innerException)
-    {
-        OrderNo = orderNo;
-    }
-}
-
-public sealed class ReceiptSyncException : Exception
-{
-    public string DocumentNumberSystem { get; }
-
-    public ReceiptSyncException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-        DocumentNumberSystem = string.Empty;
-    }
-
-    public ReceiptSyncException(string message, string receiptNo, Exception innerException)
-        : base(message, innerException)
-    {
-        DocumentNumberSystem = receiptNo;
-    }
-}
-
-public sealed class MaterialStockSyncException : Exception
-{
-    public string MaterialCode { get; }
-
-    public MaterialStockSyncException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-        MaterialCode = string.Empty;
-    }
-
-    public MaterialStockSyncException(string message, string materialCode, Exception innerException)
-        : base(message, innerException)
-    {
-        MaterialCode = materialCode;
-    }
-}
-
 public sealed class BusinessUnitResolveException : Exception
 {
     public BusinessUnitResolveException(string message, Exception innerException)
         : base(message, innerException) { }
-}
-
-public sealed class InvoiceSyncException : Exception
-{
-    public string OrderNo { get; }
-
-    public InvoiceSyncException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-        OrderNo = string.Empty;
-    }
-
-    public InvoiceSyncException(string message, string orderNo, Exception innerException)
-        : base(message, innerException)
-    {
-        OrderNo = orderNo;
-    }
 }

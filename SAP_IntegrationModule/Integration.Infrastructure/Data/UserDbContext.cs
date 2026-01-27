@@ -27,6 +27,7 @@ public class UserDbContext : DbContext
     public DbSet<MasterDefinitionValue> MasterDefinitionValues { get; set; }
     public DbSet<MasterDefinition> MasterDefinitions { get; set; }
     public DbSet<SettlementTerm> SettlementTerms { get; set; }
+    public DbSet<TerritoryControl> TerritoryControls { get; set; }
 
     //transactions
     public DbSet<Transaction> Transactions { get; set; }
@@ -44,6 +45,7 @@ public class UserDbContext : DbContext
 
     //Stock
     public DbSet<StockTransaction> StockTransactions { get; set; }
+    public DbSet<ReceivedSerialBatch> ReceivedSerialBatches { get; set; }
 
     //ERP Invoiced Order
     public DbSet<ERPInvoicedOrderDetail> ERPInvoicedOrderDetails { get; set; }

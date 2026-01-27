@@ -9,9 +9,13 @@ namespace Integration.Application.Interfaces;
 
 public interface IInvoiceRepository
 {
-    Task<List<SalesOrderHeader>> GetByOrdersByDateRangeAsync(DateTime fromDate, DateTime toDate);
+    Task<List<SalesOrderHeader>> GetOrdersByDateRangeAsync(
+        string businessunit,
+        DateTime fromDate,
+        DateTime toDate
+    );
     Task<List<ERPInvoicedOrderDetail>> GetERPInvoiceDataByOrderAsync(
-        long orderNo,
+        string orderNo,
         string businessUnit,
         string customerCode,
         string executiveCode,

@@ -87,14 +87,14 @@ public sealed class CustomerSyncService : ICustomerSyncService
 
                 try
                 {
-                    foreach (var group in customerGroups)
-                    {
-                        await ProcessCustomerGroupAsync(
-                            group.First().Customer,
-                            group.ToList(),
-                            result
-                        );
-                    }
+                    await Parallel.ForEachAsync(
+                        customerGroups,
+                        new ParallelOptions { MaxDegreeOfParallelism = 5 },
+                        async (group, ct) =>
+                        {
+                            await ProcessCustomerGroupAsync(group.Key, group.ToList(), result);
+                        }
+                    );
 
                     await _customerRepository.ClearGeoCacheAsync();
 
@@ -110,7 +110,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     );
                 }
                 catch (Exception ex)
-                    when (ex is not CustomerSyncException && ex is not SapApiExceptionDto)
+                    when (ex is not IntegrationException && ex is not SapApiExceptionDto)
                 {
                     _logger.LogError(ex, "Unexpected error during customer sync processing");
                     result.Success = false;
@@ -122,7 +122,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                                 ? $"; {ex.InnerException.Message}"
                                 : ""
                         );
-                    throw new CustomerSyncException(result.Message, ex);
+                    throw new IntegrationException(result.Message, ex, ErrorCodes.CustomerSync);
                 }
             }
             catch (SapApiExceptionDto sapEx)
@@ -136,7 +136,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                 );
                 throw;
             }
-            catch (Exception ex) when (ex is not CustomerSyncException)
+            catch (Exception ex) when (ex is not IntegrationException)
             {
                 result.Success = false;
                 result.Message =
@@ -148,7 +148,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                             : ""
                     );
                 _logger.LogError(ex, "Unexpected error during customer sync");
-                throw new CustomerSyncException(result.Message, ex);
+                throw new IntegrationException(result.Message, ex, ErrorCodes.CustomerSync);
             }
             finally
             {
@@ -346,7 +346,7 @@ public sealed class CustomerSyncService : ICustomerSyncService
                     }
                 }
             }
-            catch (Exception ex) when (ex is not CustomerSyncException)
+            catch (Exception ex) when (ex is not IntegrationException)
             {
                 _logger.LogError(
                     ex,
@@ -362,7 +362,12 @@ public sealed class CustomerSyncService : ICustomerSyncService
                             ? $"; {ex.InnerException.Message}"
                             : ""
                     );
-                throw new CustomerSyncException(result.Message, customerCode, ex);
+                throw new IntegrationException(
+                    result.Message,
+                    customerCode,
+                    ex,
+                    ErrorCodes.CustomerSync
+                );
             }
         }
     }

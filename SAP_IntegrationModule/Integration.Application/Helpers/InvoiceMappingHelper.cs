@@ -18,9 +18,13 @@ public class InvoiceMappingHelper
             TerritoryCode = order.TerritoryCode,
             ExecutiveCode = order.ExecutiveCode,
             CustomerCode = order.RetailerCode,
-            OrderNo = order.OrderNo,
-
-            InvoiceDate = ParseInvoiceDateOrThrow(sapInvoice.InvoiceDate),
+            OrderNo = sapInvoice.OrderNumber,
+            OrderDate = order.OrderDate,
+            InvoiceDate = ParseInvoiceDateOrOrderDate(
+                sapInvoice.InvoiceDate,
+                order.OrderDate,
+                sapInvoice.InvoiceStatus
+            ),
 
             TotalGoodsValue = order.TotalGoodsValue,
             TotalInvoiceValue = sapInvoice.TotalInvoiceValue,
@@ -32,9 +36,15 @@ public class InvoiceMappingHelper
         };
     }
 
-    private static DateTime ParseInvoiceDateOrThrow(string? sapInvoiceDate)
+    private static DateTime ParseInvoiceDateOrOrderDate(
+        string? sapInvoiceDate,
+        DateTime orderDate,
+        string invoiceStatus
+    )
     {
-        if (string.IsNullOrWhiteSpace(sapInvoiceDate))
+        if (invoiceStatus == "O" && string.IsNullOrWhiteSpace(sapInvoiceDate))
+            return TrimToSeconds(orderDate);
+        else if (string.IsNullOrWhiteSpace(sapInvoiceDate))
             throw new ValidationExceptionDto(
                 $"InvoiceDate is mandatory but was not provided by SAP"
             );

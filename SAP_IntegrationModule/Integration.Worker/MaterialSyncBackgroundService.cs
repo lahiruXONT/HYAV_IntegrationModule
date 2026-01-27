@@ -45,7 +45,7 @@ public class MaterialSyncBackgroundService : ResilientBackgroundService
             _logger.LogError("Material sync failed with SAP Issue");
             throw;
         }
-        catch (MaterialSyncException ex)
+        catch (IntegrationException ex)
         {
             _logger.LogError("Material sync failed with Issues");
             throw;

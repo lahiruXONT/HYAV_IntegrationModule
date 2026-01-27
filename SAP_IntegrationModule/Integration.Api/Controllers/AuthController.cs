@@ -2,9 +2,7 @@
 using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace Integration.Api.Controllers;
 
@@ -17,120 +15,142 @@ public sealed class AuthController : ControllerBase
 
     public AuthController(IAuthService authService, ILogger<AuthController> logger)
     {
-        _authService = authService;
-        _logger = logger;
+        _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponseDto>> Login([FromBody] AuthRequestDto request)
+    public async Task<ActionResult<ApiResponse<AuthResponseDto>>> Login(
+        [FromBody] AuthRequestDto request
+    )
     {
-        try
+        var validationErrors = _authService.ValidateAuthRequest(request);
+        if (validationErrors.Any())
         {
-            var validationErrors = _authService.ValidateAuthRequest(request);
-            if (validationErrors.Any())
-            {
-                _logger.LogWarning(
-                    "Login failed for user {Username}: {Message}",
-                    request.Username,
-                    validationErrors
-                );
-                return BadRequest(new { errors = validationErrors });
-            }
-
-            var ipAddress = GetClientIpAddress();
-            var result = await _authService.AuthenticateAsync(request, ipAddress);
-
-            if (!result.Success)
-            {
-                _logger.LogWarning(
-                    "Login failed for user {Username}: {Message}",
-                    request.Username,
-                    result.Message
-                );
-                return Unauthorized(result.Message);
-            }
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Login failed for user {Username}", request.Username);
-            return StatusCode(
-                500,
-                new AuthResponseDto
+            _logger.LogWarning(
+                "Login failed for user {Username}: {Message}",
+                request.Username,
+                validationErrors
+            );
+            return BadRequest(
+                new ApiResponse<AuthResponseDto>
                 {
                     Success = false,
-                    Message = "An error occurred during login. Please try again.",
+                    Message = "Validation failed",
+                    Data = null,
+                    ErrorCode = ErrorCodes.Validation,
                 }
             );
         }
+
+        var ipAddress = GetClientIpAddress();
+        var result = await _authService.AuthenticateAsync(request, ipAddress);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning(
+                "Login failed for user {Username}: {Message}",
+                request.Username,
+                result.Message
+            );
+            return Unauthorized(
+                new ApiResponse<AuthResponseDto>
+                {
+                    Success = false,
+                    Message = result.Message,
+                    Data = null,
+                    ErrorCode = "Unauthorized",
+                }
+            );
+        }
+
+        return Ok(
+            new ApiResponse<AuthResponseDto>
+            {
+                Success = true,
+                Message = "Login successful",
+                Data = result,
+            }
+        );
     }
 
     [HttpPost("refresh")]
-    public async Task<ActionResult<AuthResponseDto>> RefreshToken(
+    public async Task<ActionResult<ApiResponse<AuthResponseDto>>> RefreshToken(
         [FromBody] RefreshTokenRequestDto request
     )
     {
-        try
-        {
-            var ipAddress = GetClientIpAddress();
-            var result = await _authService.RefreshTokenAsync(request.RefreshToken, ipAddress);
+        var ipAddress = GetClientIpAddress();
+        var userName = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var result = await _authService.RefreshTokenAsync(request.RefreshToken,userName, ipAddress);
 
-            if (!result.Success)
+        if (!result.Success)
+        {
+            _logger.LogWarning(
+                "Token refresh failed for {Username}: {Message}",
+                result?.User?.Username ?? "",
+                result?.Message
+            );
+            return Unauthorized(
+                new ApiResponse<AuthResponseDto>
+                {
+                    Success = false,
+                    Message = result?.Message,
+                    Data = null,
+                    ErrorCode = "Unauthorized",
+                }
+            );
+        }
+
+        return Ok(
+            new ApiResponse<AuthResponseDto>
             {
-                _logger.LogWarning(
-                    "Token refresh failed {Username}: {Message}",
-                    result?.User?.Username ?? "",
-                    result?.Message
-                );
-                return Unauthorized(result);
+                Success = true,
+                Message = "Token refreshed successfully",
+                Data = result,
             }
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Token refresh failed");
-            return StatusCode(500, new { error = "Token refresh failed" });
-        }
+        );
     }
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout([FromBody] LogoutRequestDto request)
+    public async Task<ActionResult<ApiResponse<object>>> Logout([FromBody] LogoutRequestDto request)
     {
-        try
-        {
-            await _authService.LogoutAsync(request.RefreshToken);
-            return Ok(new { success = true, message = "Logged out successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Logout failed");
-            return StatusCode(500, new { error = "Logout failed" });
-        }
+        var userName = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        await _authService.LogoutAsync(request.RefreshToken, userName);
+
+        return Ok(
+            new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Logged out successfully",
+                Data = null,
+            }
+        );
     }
 
     [HttpPost("users")]
     [Authorize]
-    public async Task<IActionResult> CreateUser([FromBody] CreateUserDto userDto)
+    public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
+        [FromBody] CreateUserDto userDto
+    )
     {
-        try
-        {
-            var createdBy = User.Identity?.Name ?? "System";
-            var user = await _authService.CreateUserAsync(userDto, createdBy);
-            return Ok(user);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create user {Username}", userDto.Username);
-            return StatusCode(500, new { error = ex.Message });
-        }
+        var userName = User.FindFirstValue(ClaimTypes.NameIdentifier)??"System";
+        var user = await _authService.CreateUserAsync(userDto, userName);
+
+        return Ok(
+            new ApiResponse<UserDto>
+            {
+                Success = true,
+                Message = "User created successfully",
+                Data = user,
+            }
+        );
     }
 
     private string GetClientIpAddress()
     {
-        if (Request.Headers.ContainsKey("X-Forwarded-For"))
-            return Request.Headers["X-Forwarded-For"].ToString();
+        if (Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+            return forwardedFor.ToString().Split(',').First().Trim();
 
         return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
     }

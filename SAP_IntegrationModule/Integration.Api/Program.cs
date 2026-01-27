@@ -227,6 +227,7 @@ if (app.Environment.IsDevelopment())
 
 // Enforce HTTPS
 app.UseHttpsRedirection();
+app.UseForwardedHeaders();
 
 // Enable authentication and authorization
 app.UseAuthentication();

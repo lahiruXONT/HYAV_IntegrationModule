@@ -16,4 +16,5 @@ public interface ISapClient
         XontMaterialStockSyncRequestDto request
     );
     Task<SapInvoiceResponseDto> GetInvoiceDataAsync(SAPInvoiceSyncRequestDto request);
+    Task<StockInSapResponseDto> SendStockInAsync(StockInSapRequestDto request);
 }

@@ -7,7 +7,8 @@ namespace Integration.Infrastructure.Data.EFConfigurations;
 public class OtherConfiguration
     : IEntityTypeConfiguration<MasterDefinitionValue>,
         IEntityTypeConfiguration<MasterDefinition>,
-        IEntityTypeConfiguration<SettlementTerm>
+        IEntityTypeConfiguration<SettlementTerm>,
+        IEntityTypeConfiguration<TerritoryControl>
 {
     public void Configure(EntityTypeBuilder<MasterDefinitionValue> entity)
     {
@@ -45,5 +46,15 @@ public class OtherConfiguration
                 e.SettlementTermsCode,
             })
             .HasName("PK_XF_SettlementTerm");
+    }
+
+    public void Configure(EntityTypeBuilder<TerritoryControl> entity)
+    {
+        entity.ToTable("TerritoryControl", "RD");
+        entity.HasKey(e => e.RecID).HasName($"PK_RD_TerritoryControl");
+        entity
+            .HasIndex(e => new { e.BusinessUnit, e.TerritoryCode })
+            .IsUnique()
+            .HasDatabaseName($"UK_RD_TerritoryControl");
     }
 }

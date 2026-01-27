@@ -60,7 +60,8 @@ public sealed class MaterialMappingHelper
                 //SMOperatingEnvironment = string.Empty,
                 //StampingPeriod = 0,
                 //WarrantyPeriod = 0,
-                FinishedProduct = "1",
+
+                FinishedProduct = "1", //all are salable- lakshan
                 Status = "1",
                 SalableFlag = "1",
                 BatchControlPrice = "0",

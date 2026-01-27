@@ -6,5 +6,8 @@ namespace Integration.Application.Interfaces;
 public interface IStockRepository
 {
     Task UpdateStockTransactionAsync(StockTransaction stock);
-    Task<StockInXontResponseDto> GetStockInTransactionDetails(StockInXontRequestDto stock);
+    Task<List<StockTransaction>> GetStockInTransactionDetails(
+        string businessUnit,
+        string materialDocumentNumber
+    );
 }

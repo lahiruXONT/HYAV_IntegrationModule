@@ -29,6 +29,13 @@ public class RetailerConfiguration
         entity.Property(e => e.UpdatedOn).HasDefaultValueSql("GETDATE()");
         entity.Property(e => e.CreditLimit).HasPrecision(15, 4);
 
+        entity
+            .HasMany(e => e.RetailerClassifications)
+            .WithOne(l => l.Retailer)
+            .HasForeignKey(l => new { l.BusinessUnit, l.RetailerCode })
+            .HasPrincipalKey(t => new { t.BusinessUnit, t.RetailerCode })
+            .OnDelete(DeleteBehavior.Cascade);
+
         // BLOCK updates for Global-owned columns if needed
         //entity.Property(e => e.RetailerName)
         //      .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);

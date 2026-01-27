@@ -11,7 +11,7 @@ public interface IAuthRepository
 {
     Task<User?> GetUserAsync(string businessUnit, string username);
     Task<User?> GetUserByRefreshTokenAsync(string refreshToken);
-    Task<UserSession?> GetUserSessionAsync(string refreshToken);
+    Task<UserSession?> GetUserSessionAsync(string refreshToken, string userName);
     Task UpdateUserAsync(User user);
     Task CreateUserSessionAsync(UserSession session);
     Task UpdateUserSessionAsync(UserSession session);

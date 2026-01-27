@@ -6,17 +6,13 @@ public interface IRetailerRepository
 {
     Task<Retailer?> GetByRetailerCodeAsync(string retailerCode, string businessUnit);
     Task<SettlementTerm?> GetSettlementTermAsync(string businessUnit, string PaymentTerm);
+    Task<TerritoryControl?> GetTerritoryDefaultAsync(string BusinessUnit, string territoryCode);
     Task<bool> SettlementTermExistsAsync(string businessUnit, string PaymentTerm);
 
     Task<bool> PostalCodeExistsForTownAsync(string businessUnit, string postalCode);
     Task<bool> DistributionChannelExistsAsync(string businessUnit, string Distributionchannel);
 
-    Task<(bool hasGeoChanges, bool hasDistChannelChanges)> CheckClassificationChangesAsync(
-        string businessUnit,
-        string retailerCode,
-        string postalCode,
-        string distributionChannel
-    );
+    Task<bool> TerritoryExistsAsync(string BusinessUnit, string territoryCode);
     Task CreateRetailerAsync(Retailer retailer);
     Task UpdateRetailerAsync(Retailer retailer);
     Task AddOrUpdateRetailerGeographicDataAsync(

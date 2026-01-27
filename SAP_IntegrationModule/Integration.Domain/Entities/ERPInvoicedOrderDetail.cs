@@ -13,8 +13,9 @@ public class ERPInvoicedOrderDetail
     public string TerritoryCode { get; set; }
     public string ExecutiveCode { get; set; }
     public string CustomerCode { get; set; }
-    public long OrderNo { get; set; }
+    public string OrderNo { get; set; }
     public DateTime InvoiceDate { get; set; }
+    public DateTime OrderDate { get; set; }
     public decimal TotalGoodsValue { get; set; }
     public decimal TotalInvoiceValue { get; set; }
 

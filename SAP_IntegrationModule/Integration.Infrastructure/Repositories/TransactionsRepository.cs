@@ -21,10 +21,14 @@ public class TransactionsRepository : ITransactionsRepository
         _context = context;
     }
 
-    public Task<List<Transaction>> GetUnsyncedReceiptsAsync(List<long> recIds) =>
+    public Task<List<Transaction>> GetUnsyncedReceiptsAsync(
+        string BusinessUnit,
+        List<long> recIds
+    ) =>
         _context
             .Transactions.Where(r =>
-                r.IntegratedStatus == "0"
+                r.BusinessUnit == BusinessUnit
+                && r.IntegratedStatus == "0"
                 && r.TransactionCode == 151
                 && (!recIds.Any() || recIds.Contains(r.RecID))
             )

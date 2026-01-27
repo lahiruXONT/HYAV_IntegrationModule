@@ -35,6 +35,10 @@ public sealed class CustomerMappingHelper
                 businessUnit,
                 sapCustomer.PaymentTerm
             );
+            var territoryDefault = await _customerRepository.GetTerritoryDefaultAsync(
+                businessUnit,
+                sapCustomer.SalesOffice
+            );
 
             var retailer = new Retailer
             {
@@ -63,8 +67,8 @@ public sealed class CustomerMappingHelper
 
                 // Default values
                 PricingMethod = string.Empty,
-                PriceGroup = string.Empty, //need to add default value
-                TradeSchemeGroup = string.Empty, //need to add default value
+                PriceGroup = territoryDefault?.PriceGroup ?? "",
+                TradeSchemeGroup = territoryDefault?.TradeSchemeGroup ?? "",
                 SalesOperationType = "2",
 
                 TelephoneNumberSys = string.Empty,
@@ -143,6 +147,14 @@ public sealed class CustomerMappingHelper
 
         if (string.IsNullOrWhiteSpace(sapCustomer.SalesOffice))
             errors.Add("Sales Office is required");
+        else if (
+            !await _customerRepository.TerritoryExistsAsync(businessUnit, sapCustomer.SalesOffice)
+        )
+        {
+            errors.Add(
+                $"No Territory '{sapCustomer.SalesOffice}' exists for Business Unit '{businessUnit}'"
+            );
+        }
 
         if (string.IsNullOrWhiteSpace(sapCustomer.PostalCode))
         {
@@ -319,13 +331,12 @@ public sealed class CustomerMappingHelper
                 StringComparison.OrdinalIgnoreCase
             );
 
-        var (geoClassificationChanged, distChannelChanged) =
-            await _customerRepository.CheckClassificationChangesAsync(
-                existing.BusinessUnit,
-                existing.RetailerCode,
-                postalCode,
-                distChannel
-            );
+        var geoClassificationChanged = existing.RetailerClassifications.Any(c =>
+            c.MasterGroup == "TOWN" && c.MasterGroupValue != postalCode
+        );
+        var distChannelChanged = existing.RetailerClassifications.Any(c =>
+            c.MasterGroup == "DISTCHNL" && c.MasterGroupValue != distChannel
+        );
 
         return (retailerChanged, geoClassificationChanged, distChannelChanged);
     }

@@ -27,6 +27,7 @@ public class Transaction
 
     //need to decide the post date from these or create date?
     public DateTime PostedDate { get; set; }
+    public DateTime DocumentDate { get; set; }
     public DateTime PostedOn { get; set; }
 
     //end of need to decide

@@ -13,5 +13,4 @@ public class ZYBusinessUnit
     public string Division { get; set; } = string.Empty;
 
     public string SalesOrganization { get; set; } = string.Empty;
-    //public string ProfitCenter { get; set; } = string.Empty;
 }

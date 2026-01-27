@@ -101,7 +101,11 @@ public sealed class StockSyncService : IStockSyncService
 
                 _logger.LogError(ex, "Stock sync  failed");
 
-                throw new MaterialSyncException($"Stock sync failed: {ex.Message}", ex);
+                throw new IntegrationException(
+                    $"Stock sync failed: {ex.Message}",
+                    ex,
+                    ErrorCodes.StockOutSync
+                );
             }
             finally
             {
@@ -192,7 +196,11 @@ public sealed class StockSyncService : IStockSyncService
 
                 _logger.LogError(ex, "Stock sync  failed");
 
-                throw new MaterialSyncException($"Stock sync failed: {ex.Message}", ex);
+                throw new IntegrationException(
+                    $"Stock sync failed: {ex.Message}",
+                    ex,
+                    ErrorCodes.StockOutSync
+                );
             }
             finally
             {
@@ -225,68 +233,108 @@ public sealed class StockSyncService : IStockSyncService
                 new Dictionary<string, object>
                 {
                     ["CorrelationId"] = correlationId,
-                    ["SyncType"] = "Stock Out",
-                    ["RequestDate"] = request.SyncDate,
+                    ["SyncType"] = "Stock In",
+                    ["RequestDate"] = result.SyncDate,
+                    ["BusinessUnit"] = request.BusinessUnit,
+                    ["MaterialDocumentNumber"] = request.MaterialDocumentNumber,
                 }
             )
         )
         {
+            var validationErrors = ValidateRequest(request);
+            if (validationErrors.Any())
+            {
+                result.Success = false;
+                result.Message =
+                    $"Stock In sync request validation failed: {string.Join("; ", validationErrors)}";
+                _logger.LogWarning(
+                    "Stock In sync validation failed: {ValidationErrors}",
+                    string.Join("; ", validationErrors)
+                );
+                return result;
+            }
+
+            _logger.LogInformation(
+                "Starting stock in sync for MaterialDocumentNumber : {MaterialDocumentNumber} : {Date}",
+                request.MaterialDocumentNumber,
+                result.SyncDate
+            );
+
             try
             {
-                if (request == null)
-                    throw new ArgumentNullException(nameof(request));
+                var xontStockDetails = await _stockRepository.GetStockInTransactionDetails(
+                    request.BusinessUnit,
+                    request.MaterialDocumentNumber
+                );
 
-                if (request.SyncDate == default)
-                    throw new ArgumentException("Date is required", nameof(request.SyncDate));
-
-                var xontStockDetails = await _stockRepository.GetStockInTransactionDetails(request);
-
-                if (xontStockDetails == null)
+                if (xontStockDetails == null || !xontStockDetails.Any())
                 {
-                    result.Success = true;
-                    result.Message = "No Stock Record found";
+                    result.Success = false;
+                    result.Message =
+                        $"No Stock Record found for MaterialDocumentNumber :{request.MaterialDocumentNumber} ";
 
+                    _logger.LogWarning(result.Message);
                     return result;
                 }
 
-                try
+                var stock = await _mappingHelper.MapXontToSapStockTransactionAsync(
+                    xontStockDetails
+                );
+
+                var sapResult = await _sapClient.SendStockInAsync(stock);
+
+                if (sapResult.E_RESULT == "1")
                 {
-                    var stock = _mappingHelper.MapXontToSapStockTransactionAsync(xontStockDetails);
-
-                    //await _stockRepository.UpdateStockTransactionAsync(stock);
-
                     result.Success = true;
                     result.Message =
                         $"Stock Record sync completed for Document Number "
                         + result.MaterialDocumentNumber;
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogError(
-                        ex,
-                        "Error during stock processing in sync , rolling back transaction"
-                    );
-
                     result.Success = false;
-                    result.Message = $"Sync failed and rolled back: {ex.Message}";
-                    throw;
+                    var errorMessage =
+                        $"Stock Record sync Failed for Document Number {request.BusinessUnit}, {request.MaterialDocumentNumber}: {sapResult.E_REASON}";
+                    _logger.LogError(errorMessage);
+                    result.Message = errorMessage;
                 }
             }
-            //catch (SapApiExceptionDto sapEx)
-            //{
-            //    result.Success = false;
-            //    result.Message = $"SAP API error: {sapEx.Message}";
-            //    _logger.LogError(sapEx, "SAP API error during stock sync");
-            //    throw;
-            //}
-            catch (Exception ex)
+            catch (SapApiExceptionDto sapEx)
             {
                 result.Success = false;
-                result.Message = $"Sync  failed: {ex.Message}";
+                result.Message = sapEx.Message;
+                _logger.LogError(
+                    sapEx.InnerException,
+                    "SAP API error processing stock in {BusinessUnit} {MaterialDocumentNumber}: {Message}",
+                    request.BusinessUnit,
+                    request.MaterialDocumentNumber,
+                    sapEx.Message
+                );
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unexpected error during sync stock in {BusinessUnit} , {MaterialDocumentNumber}",
+                    request.BusinessUnit,
+                    request.MaterialDocumentNumber
+                );
+                result.Message =
+                    $"Unexpected error during sync stock in {request.BusinessUnit}, {request.MaterialDocumentNumber}"
+                    + (string.IsNullOrWhiteSpace(ex.Message) ? "" : $": {ex.Message}")
+                    + (
+                        !string.IsNullOrWhiteSpace(ex.InnerException?.Message)
+                            ? $"; {ex.InnerException.Message}"
+                            : ""
+                    );
 
-                _logger.LogError(ex, "Stock sync  failed");
-
-                throw new MaterialSyncException($"Stock sync failed: {ex.Message}", ex);
+                throw new IntegrationException(
+                    result.Message,
+                    request.MaterialDocumentNumber.ToString(),
+                    ex,
+                    ErrorCodes.StockInSync
+                );
             }
             finally
             {
@@ -296,5 +344,23 @@ public sealed class StockSyncService : IStockSyncService
         }
 
         return result;
+    }
+
+    private List<string> ValidateRequest(StockInXontRequestDto request)
+    {
+        var errors = new List<string>();
+
+        if (request == null)
+        {
+            errors.Add("Request cannot be null");
+            return errors;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.MaterialDocumentNumber))
+            errors.Add("MaterialDocumentNumber is required");
+        if (string.IsNullOrWhiteSpace(request.BusinessUnit))
+            errors.Add("BusinessUnit is required");
+
+        return errors;
     }
 }

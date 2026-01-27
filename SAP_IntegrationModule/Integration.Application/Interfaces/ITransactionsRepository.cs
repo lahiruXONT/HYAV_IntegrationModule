@@ -9,6 +9,6 @@ namespace Integration.Application.Interfaces;
 
 public interface ITransactionsRepository
 {
-    Task<List<Transaction>> GetUnsyncedReceiptsAsync(List<long> recIds);
+    Task<List<Transaction>> GetUnsyncedReceiptsAsync(string BusinessUnit, List<long> recIds);
     Task UpdateTransactionAsync(Transaction transaction);
 }

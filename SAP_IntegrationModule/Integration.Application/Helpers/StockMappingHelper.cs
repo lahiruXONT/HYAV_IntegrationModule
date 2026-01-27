@@ -84,34 +84,55 @@ public sealed class StockMappingHelper
         }
     }
 
-    public StockInSapRequestDto MapXontToSapStockTransactionAsync(StockInXontResponseDto stock)
+    public async Task<StockInSapRequestDto> MapXontToSapStockTransactionAsync(
+        List<StockTransaction> stocks
+    )
     {
         try
         {
             var sapDto = new StockInSapRequestDto
             {
-                HeaderText = stock.MaterialDocumentNumber ?? "",
-                PostingDate = stock.StockDetails.CreatedOn,
+                HEADER_TXT = stocks.First().TransactionReference ?? "",
+                POSTING_DATE = stocks.First().CreatedOn,
+                I_ITEM = stocks
+                    .SelectMany(s =>
+                        //s.ReceivedSerialBatches != null && s.ReceivedSerialBatches.Any() ? // currently commented out non-batch items since batch is required
+
+                        s.ReceivedSerialBatches.Select(b => new StockInSapItemDto
+                        {
+                            Batch = b.BatchSerialNumber,
+                            Material = b.ProductCode,
+                            Quantity = b.Quantity,
+                            ReceivingPlant = b.WarehouseCode,
+                            ReceivingStorageLoc = b.LocationCode,
+                            Reference = "",
+                        })
+                    //: new List<StockInSapItemDto>
+                    //{
+                    //    new StockInSapItemDto
+                    //    {
+                    //        Batch = "",
+                    //        Material = s.ProductCode,
+                    //        Quantity = s.U1MovementQuantity,
+                    //        ReceivingPlant = s.WarehouseCode,
+                    //        ReceivingStorageLoc = s.LocationCode,
+                    //        Reference = "",
+                    //    }
+                    //}
+                    )
+                    .ToList(),
             };
 
-            var itemDto = new StockInSapItemDto
-            {
-                Batch = stock.StockDetails.ProductCode,
-                Material = stock.StockDetails.ProductCode,
-                Quantity = stock.StockDetails.U1MovementQuantity,
-                ReceivingPlant = stock.StockDetails.WarehouseCode,
-                ReceivingStorageLoc = stock.StockDetails.LocationCode,
-                Reference = stock.StockDetails.TransactionReference,
-            };
-
-            sapDto.Items = new List<StockInSapItemDto> { itemDto };
-
-            //await ValidateXontStockTransactionAsync(sapDto);
             return sapDto;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to map to SAP Dto");
+            _logger.LogError(
+                ex,
+                "Failed to map Receipt to SAP receipt. BusinessUnit: {BusinessUnit}, materialDocumentNumber: {materialDocumentNumber}",
+                stocks.First().BusinessUnit,
+                stocks.First().TransactionReference
+            );
             throw;
         }
     }

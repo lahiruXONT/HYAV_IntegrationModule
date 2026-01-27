@@ -38,7 +38,7 @@ public class ReceiptMappingHelper
             var receiptHeader = new ReceiptHeader
             {
                 COMP_CODE = businessUnit?.SalesOrganization?.Trim() ?? string.Empty,
-                PSTNG_DATE = xontReceipt.PostedDate,
+                PSTNG_DATE = xontReceipt.DocumentDate,
                 CURRENCY_ISO = xontReceipt.CurrencyCode,
                 REF_DOC_NO = xontReceipt?.DocumentNumber?.Trim() ?? string.Empty,
             };
@@ -46,7 +46,7 @@ public class ReceiptMappingHelper
             {
                 CUSTOMER = xontReceipt?.CurrencyCode?.Trim() ?? string.Empty,
                 GL_ACCOUNT = xontReceipt?.BankAccountNumber?.Trim() ?? string.Empty,
-                PROFIT_CTR = string.Empty, //businessUnit?.ProfitCenter?.Trim() ?? string.Empty,
+                PROFIT_CTR = string.Empty,
                 AMOUNT = xontReceipt?.Amount ?? 0m,
             };
             var receiptObj = new ReceiptRequestDto

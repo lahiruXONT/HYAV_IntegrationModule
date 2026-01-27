@@ -21,26 +21,16 @@ public class StockRepository : IStockRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<StockInXontResponseDto> GetStockInTransactionDetails(
-        StockInXontRequestDto stock
-    )
-    {
-        var results = await _context
-            .StockTransactions.Where(s =>
-                s.BusinessUnit == stock.BusinessUnit
-                && s.TransactionReference == stock.MaterialDocumentNumber
+    public Task<List<StockTransaction>> GetStockInTransactionDetails(
+        string businessUnit,
+        string materialDocumentNumber
+    ) =>
+        _context
+            .StockTransactions.Include(h => h.ReceivedSerialBatches)
+            .Where(s =>
+                s.BusinessUnit == businessUnit
+                && s.TransactionReference == materialDocumentNumber
+                && s.MovementType == "1"
             )
-            .FirstOrDefaultAsync();
-
-        if (results == null)
-            return null;
-
-        return new StockInXontResponseDto
-        {
-            Success = true,
-            StockDetails = results,
-            MaterialDocumentNumber = results.TransactionReference,
-            SyncDate = results.CreatedOn,
-        };
-    }
+            .ToListAsync();
 }

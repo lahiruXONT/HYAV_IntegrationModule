@@ -38,6 +38,7 @@ public class ReceiptItem
 
 public sealed class XontReceiptSyncRequestDto
 {
+    public string BusinessUnit { get; set; } = string.Empty;
     public List<long> IDs { get; set; } = new List<long>();
 }
 

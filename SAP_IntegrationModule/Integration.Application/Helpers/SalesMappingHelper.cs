@@ -34,12 +34,15 @@ public sealed class SalesMappingHelper
                     order.RetailerCode
                 ) ?? string.Empty;
 
+            var businessUnit = await _businessUnitResolver.GetBusinessUnitDataAsync(
+                order.BusinessUnit
+            );
             var salesOrderRequestDto = new SalesOrderRequestDto
             {
                 OrderType = "Test" ?? string.Empty,
                 SalesOrg = order?.SalesOrganization?.Trim() ?? string.Empty,
                 DistributionChannel = distributionChannel,
-                Division = order?.BusinessUnit?.Trim() ?? string.Empty,
+                Division = businessUnit?.Division?.Trim() ?? string.Empty,
                 SalesOffice = order?.TerritoryCode?.Trim() ?? string.Empty,
                 SalesGroup = order?.SalesCategoryCode?.Trim() ?? string.Empty,
                 CustomerReference = order?.CustomerOrderReference?.Trim() ?? string.Empty,

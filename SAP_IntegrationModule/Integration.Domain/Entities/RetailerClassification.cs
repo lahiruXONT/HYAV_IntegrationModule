@@ -25,4 +25,5 @@ public class RetailerClassification : BaseAuditableEntity
     public string GroupType { get; set; } = string.Empty;
 
     public string Status { get; set; } = "1";
+    public Retailer Retailer { get; set; } = null!;
 }
