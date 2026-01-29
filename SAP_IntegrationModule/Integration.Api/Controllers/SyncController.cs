@@ -1,12 +1,13 @@
 ﻿using Integration.Application.DTOs;
 using Integration.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Integration.Api.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-//[Authorize]
+[Authorize]
 public sealed class SyncController : ControllerBase
 {
     private readonly ICustomerSyncService _customerSyncService;

@@ -12,7 +12,11 @@ namespace Integration.Application.Interfaces;
 public interface IAuthService
 {
     Task<AuthResponseDto> AuthenticateAsync(AuthRequestDto request, string? ipAddress = null);
-    Task<AuthResponseDto> RefreshTokenAsync(string refreshToken, string userName, string? ipAddress = null);
+    Task<AuthResponseDto> RefreshTokenAsync(
+        string refreshToken,
+        string userName,
+        string? ipAddress = null
+    );
     Task LogoutAsync(string refreshToken, string userName);
     Task<UserDto> CreateUserAsync(CreateUserDto userDto, string createdBy);
     List<string> ValidateAuthRequest(AuthRequestDto request);

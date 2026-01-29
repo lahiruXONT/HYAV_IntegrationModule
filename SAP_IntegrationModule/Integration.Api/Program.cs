@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using Integration.Api.Middleware;
+using Integration.Api.Security;
 using Integration.Application.Helpers;
 using Integration.Application.Interfaces;
 using Integration.Application.Services;
@@ -8,11 +9,13 @@ using Integration.Infrastructure.Clients;
 using Integration.Infrastructure.Data;
 using Integration.Infrastructure.Mock;
 using Integration.Infrastructure.Repositories;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+
+//using Microsoft.AspNetCore.Authentication.JwtBearer;
+//using Microsoft.IdentityModel.Tokens;
 
 // --- create the application builder
 var builder = WebApplication.CreateBuilder(args);
@@ -26,40 +29,46 @@ builder.Host.UseSerilog(
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+#region removed jwt auth and add HMAC authentication
 // --- Add swagger documentation ---
+//builder.Services.AddSwaggerGen(c =>
+//{
+//    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SAP Integration API", Version = "v1" });
+
+//    c.AddSecurityDefinition(
+//        "Bearer",
+//        new OpenApiSecurityScheme
+//        {
+//            Name = "Authorization",
+//            Type = SecuritySchemeType.Http,
+//            Scheme = "bearer",
+//            BearerFormat = "JWT",
+//            In = ParameterLocation.Header,
+//            Description = "Enter your token",
+//        }
+//    );
+
+//    c.AddSecurityRequirement(
+//        new OpenApiSecurityRequirement
+//        {
+//            {
+//                new OpenApiSecurityScheme
+//                {
+//                    Reference = new OpenApiReference
+//                    {
+//                        Type = ReferenceType.SecurityScheme,
+//                        Id = "Bearer",
+//                    },
+//                },
+//                Array.Empty<string>()
+//            },
+//        }
+//    );
+//});
+#endregion
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "SAP Integration API", Version = "v1" });
-
-    c.AddSecurityDefinition(
-        "Bearer",
-        new OpenApiSecurityScheme
-        {
-            Name = "Authorization",
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            In = ParameterLocation.Header,
-            Description = "Enter your token",
-        }
-    );
-
-    c.AddSecurityRequirement(
-        new OpenApiSecurityRequirement
-        {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer",
-                    },
-                },
-                Array.Empty<string>()
-            },
-        }
-    );
 });
 
 // --- System Database contexts ---
@@ -71,67 +80,36 @@ builder.Services.AddDbContext<SystemDbContext>(options =>
 builder.Services.AddDbContext<UserDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("UserDB"))
 );
+builder.Services.AddSingleton(TimeProvider.System);
 
-// --- JWT Authentication ---
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrEmpty(jwtKey))
-    throw new InvalidOperationException("JWT Key is not configured");
-builder
-    .Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        };
-    });
-builder.Services.AddAuthorization();
-
-//// --- SAP HTTP Client ---
-//builder.Services.AddHttpClient<ISapClient, SapApiClient>(
-//    (serviceProvider, client) =>
+#region --- JWT Authentication --- removed jwt auth and add HMAC authentication
+//var jwtKey = builder.Configuration["Jwt:Key"];
+//if (string.IsNullOrEmpty(jwtKey))
+//    throw new InvalidOperationException("JWT Key is not configured");
+//builder
+//    .Services.AddAuthentication(options =>
 //    {
-//        var config = serviceProvider.GetRequiredService<IConfiguration>();
-//        var baseUrl = config["SapApi:BaseUrl"];
-//        var username = config["SapApi:Username"];
-//        var password = config["SapApi:Password"];
-
-//        if (
-//            string.IsNullOrEmpty(baseUrl)
-//            || string.IsNullOrEmpty(username)
-//            || string.IsNullOrEmpty(password)
-//        )
+//        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+//        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+//    })
+//    .AddJwtBearer(options =>
+//    {
+//        options.TokenValidationParameters = new TokenValidationParameters
 //        {
-//            throw new InvalidOperationException("SAP API configuration is incomplete.");
-//        }
-
-//        client.BaseAddress = new Uri(baseUrl);
-//        client.Timeout = TimeSpan.FromSeconds(config.GetValue("SapApi:TimeoutSeconds", 120));
-
-//        // Basic authentication
-//        var authToken = Convert.ToBase64String(
-//            System.Text.Encoding.ASCII.GetBytes($"{username}:{password}")
-//        );
-//        client.DefaultRequestHeaders.Authorization =
-//            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authToken);
-
-//        // Add default headers
-//        client.DefaultRequestHeaders.Accept.Add(
-//            new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json")
-//        );
-//        client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-//    }
-//);
+//            ValidateIssuer = true,
+//            ValidateAudience = true,
+//            ValidateLifetime = true,
+//            ValidateIssuerSigningKey = true,
+//            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+//            ValidAudience = builder.Configuration["Jwt:Audience"],
+//            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+//        };
+//    });
+#endregion
+builder
+    .Services.AddAuthentication("HMAC")
+    .AddScheme<AuthenticationSchemeOptions, HmacAuthenticationHandler>("HMAC", null);
+builder.Services.AddAuthorization();
 
 // --- SAP Client (Mock or Real) ---
 var sapMode = builder.Configuration["SapApi:Mode"];

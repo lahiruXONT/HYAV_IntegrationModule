@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Integration.Api.Controllers;
 
+[ApiExplorerSettings(IgnoreApi = true)]
 [Route("api/[controller]")]
 [ApiController]
 public sealed class AuthController : ControllerBase
@@ -19,6 +20,7 @@ public sealed class AuthController : ControllerBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    [NonAction]
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<AuthResponseDto>>> Login(
         [FromBody] AuthRequestDto request
@@ -74,6 +76,7 @@ public sealed class AuthController : ControllerBase
         );
     }
 
+    [NonAction]
     [HttpPost("refresh")]
     public async Task<ActionResult<ApiResponse<AuthResponseDto>>> RefreshToken(
         [FromBody] RefreshTokenRequestDto request
@@ -81,7 +84,11 @@ public sealed class AuthController : ControllerBase
     {
         var ipAddress = GetClientIpAddress();
         var userName = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var result = await _authService.RefreshTokenAsync(request.RefreshToken,userName, ipAddress);
+        var result = await _authService.RefreshTokenAsync(
+            request.RefreshToken,
+            userName,
+            ipAddress
+        );
 
         if (!result.Success)
         {
@@ -111,6 +118,7 @@ public sealed class AuthController : ControllerBase
         );
     }
 
+    [NonAction]
     [HttpPost("logout")]
     [Authorize]
     public async Task<ActionResult<ApiResponse<object>>> Logout([FromBody] LogoutRequestDto request)
@@ -128,13 +136,14 @@ public sealed class AuthController : ControllerBase
         );
     }
 
+    [NonAction]
     [HttpPost("users")]
     [Authorize]
     public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
         [FromBody] CreateUserDto userDto
     )
     {
-        var userName = User.FindFirstValue(ClaimTypes.NameIdentifier)??"System";
+        var userName = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
         var user = await _authService.CreateUserAsync(userDto, userName);
 
         return Ok(

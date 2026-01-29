@@ -1,0 +1,49 @@
+1. Add these Environment Variables to Environment
+
+ Variable			Value
+apiKey			api-key
+secret			hmac-secret
+baseUrl			https://localhost:5001
+timestamp		
+signature	
+
+2. Add these Headers to Request
+
+ Key					Value
+X-Api-Key			{{apiKey}}
+X-Timestamp			{{timestamp}}
+X-Signature			{{signature}}
+Content-Type		application/json
+
+3. Add this Pre-request Script for collection
+
+const apiKey = pm.environment.get('apiKey');
+const secret = pm.environment.get('secret');
+
+if (!secret) {
+    throw new Error("HMAC secret is missing in Postman environment");
+}
+
+// Timestamp
+const timestamp = Math.floor(Date.now() / 1000).toString();
+pm.environment.set('timestamp', timestamp);
+
+// Request details
+const method = pm.request.method;
+const path = pm.request.url.getPath();
+
+// Safe body handling
+let body = "";
+if (pm.request.body && pm.request.body.mode === "raw") {
+    body = pm.request.body.raw || "";
+}
+
+// Build payload
+const payload = method + "\n" + path + "\n" + timestamp + "\n" + body;
+
+// Compute HMAC
+const hash = CryptoJS.HmacSHA256(payload, secret);
+const signature = CryptoJS.enc.Base64.stringify(hash);
+
+// Set environment variables
+pm.environment.set('signature', signature);

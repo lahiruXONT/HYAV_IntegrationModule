@@ -1,0 +1,140 @@
+{
+  "info": {
+    "_postman_id": "710098a2-71b1-4591-a906-b4ff744486a0",
+    "name": "SAP-Integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "42426775"
+  },
+  "item": [
+    {
+      "name": "CustomerSync",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "\t{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "X-Timestamp",
+            "value": "\t{{timestamp}}",
+            "type": "text"
+          },
+          {
+            "key": "X-Signature",
+            "value": "\t{{signature}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "\tapplication/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"date\": \"20260101\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://localhost:7174/api/Sync/customer",
+          "protocol": "https",
+          "host": [
+            "localhost"
+          ],
+          "port": "7174",
+          "path": [
+            "api",
+            "Sync",
+            "customer"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "const apiKey = pm.environment.get('apiKey');\r",
+          "const secret = pm.environment.get('secret');\r",
+          "\r",
+          "if (!secret) {\r",
+          "    throw new Error(\"HMAC secret is missing in Postman environment\");\r",
+          "}\r",
+          "\r",
+          "// Timestamp\r",
+          "const timestamp = Math.floor(Date.now() / 1000).toString();\r",
+          "pm.environment.set('timestamp', timestamp);\r",
+          "\r",
+          "// Request details\r",
+          "const method = pm.request.method;\r",
+          "const path = pm.request.url.getPath();\r",
+          "\r",
+          "// Safe body handling\r",
+          "let body = \"\";\r",
+          "if (pm.request.body && pm.request.body.mode === \"raw\") {\r",
+          "    body = pm.request.body.raw || \"\";\r",
+          "}\r",
+          "\r",
+          "// Build payload\r",
+          "const payload = method + \"\\n\" + path + \"\\n\" + timestamp + \"\\n\" + body;\r",
+          "\r",
+          "// Compute HMAC\r",
+          "const hash = CryptoJS.HmacSHA256(payload, secret);\r",
+          "const signature = CryptoJS.enc.Base64.stringify(hash);\r",
+          "\r",
+          "// Set environment variables\r",
+          "pm.environment.set('signature', signature);\r",
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "apiKey",
+      "value": "XONT-SAP-Integration"
+    },
+    {
+      "key": "secret",
+      "value": "hmvc5avc4MTFYF4botzLvpVJ5UsnT+3dKg208jqRgDg17L840EqiYWNhxaV5Na2W5XBMIdH6K/NpGwhFcPT7hQ=="
+    },
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:7174"
+    },
+    {
+      "key": "timestamp",
+      "value": ""
+    },
+    {
+      "key": "signature",
+      "value": ""
+    }
+  ]
+}

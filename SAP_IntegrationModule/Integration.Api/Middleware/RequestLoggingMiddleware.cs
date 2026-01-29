@@ -73,11 +73,11 @@ public sealed class RequestLoggingMiddleware
                 await _next(context);
 
                 stopwatch.Stop();
-                if (context.Response.StatusCode >= 400)
-                {
-                    var responseText = await ReadResponseBody(context.Response);
-                    await LogErrorToDatabase(context, requestLogId, responseText);
-                }
+                //if (context.Response.StatusCode >= 400)
+                //{
+                //    var responseText = await ReadResponseBody(context.Response);
+                //    await LogErrorToDatabase(context, requestLogId, responseText);
+                //}
 
                 _logger.LogInformation(
                     "Request completed: {Method} {Path} with status {StatusCode} in {ElapsedMilliseconds}ms",
@@ -116,22 +116,24 @@ public sealed class RequestLoggingMiddleware
             var requestBody = await GetRequestBody(context.Request);
             var message = $"{requestBody}";
 
-            using var scope = _serviceProvider.CreateScope();
-            var _logRepository = scope.ServiceProvider.GetRequiredService<ILogRepository>();
             _logger.LogInformation(
-                "Request received: {Method} {Path} by {User} in {BusinessUnit}",
+                "Request received: {Method} {Path} by {User} in {BusinessUnit} : {message}",
                 context.Request.Method,
                 context.Request.Path,
                 username,
-                businessUnit
-            );
-            var requestLogId = await _logRepository.LogRequestAsync(
                 businessUnit,
-                username,
-                methodName,
-                message,
-                "I"
+                message
             );
+            int requestLogId = 0;
+            //using var scope = _serviceProvider.CreateScope();
+            //var _logRepository = scope.ServiceProvider.GetRequiredService<ILogRepository>();
+            // requestLogId = await _logRepository.LogRequestAsync(
+            //    businessUnit,
+            //    username,
+            //    methodName,
+            //    message,
+            //    "I"
+            //);
 
             return requestLogId;
         }

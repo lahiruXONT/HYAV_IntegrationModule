@@ -97,7 +97,8 @@ public sealed class AuthService : IAuthService
     }
 
     public async Task<AuthResponseDto> RefreshTokenAsync(
-        string refreshToken, string userName,
+        string refreshToken,
+        string userName,
         string? ipAddress = null
     )
     {
